@@ -1,0 +1,25 @@
+{
+  "name": "職人帳 - 一人親方管理アプリ",
+  "short_name": "職人帳",
+  "description": "一人親方のためのスケジュール・出面・請求書管理アプリ",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f2f2f7",
+  "theme_color": "#1a4fa0",
+  "orientation": "portrait",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
