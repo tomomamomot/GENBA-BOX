@@ -1,6 +1,6 @@
 {
-  "name": "職人帳 - 一人親方管理アプリ",
-  "short_name": "職人帳",
+  "name": "GENBA BOX - 一人親方現場管理アプリ",
+  "short_name": "GENBA BOX",
   "description": "一人親方のためのスケジュール・出面・請求書管理アプリ",
   "start_url": "./index.html",
   "display": "standalone",
