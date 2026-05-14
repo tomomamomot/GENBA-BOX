@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
@@ -10,164 +10,9 @@
 <title>GENBA BOX</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
-<style>
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-:root{
-  --ink:#1c1c1e;--sub:#636366;--line:#e5e5ea;--bg:#f2f2f7;--card:#fff;
-  --accent:#1a4fa0;--accent2:#c8941a;--red:#e24b4a;--green:#27500a;
-  --safe-top:env(safe-area-inset-top,0px);
-  --safe-bot:env(safe-area-inset-bottom,0px)
-}
-body{font-family:-apple-system,'Hiragino Sans','Hiragino Kaku Gothic ProN',sans-serif;background:var(--bg);color:var(--ink);font-size:15px;max-width:430px;margin:0 auto;overflow-x:hidden}
-.screen{display:none;min-height:100dvh;padding-bottom:calc(68px + var(--safe-bot))}
-.screen.active{display:block}
-
-/* topbar */
-.topbar{background:var(--card);border-bottom:0.5px solid var(--line);padding:calc(12px + var(--safe-top)) 16px 10px;position:sticky;top:0;z-index:100}
-.topbar-row{display:flex;align-items:center;justify-content:space-between}
-.topbar-title{font-size:18px;font-weight:700;color:var(--ink)}
-.topbar-sub{font-size:12px;color:var(--sub);margin-top:2px}
-
-/* nav */
-.nav{background:var(--card);border-top:0.5px solid var(--line);position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;display:flex;padding-bottom:var(--safe-bot);z-index:200}
-.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 0 6px;cursor:pointer;color:var(--sub);font-size:10px;gap:2px;border:none;background:none;-webkit-appearance:none}
-.nav-item svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-.nav-item.active{color:var(--accent)}
-
-/* month nav */
-.month-nav{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--card);border-bottom:0.5px solid var(--line)}
-.month-nav button{background:none;border:none;cursor:pointer;color:var(--accent);padding:6px 10px;font-size:20px;border-radius:8px}
-.month-nav button:active{background:var(--bg)}
-.month-label{font-size:16px;font-weight:600}
-
-/* calendar */
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);background:var(--card);padding:4px 6px 8px}
-.cal-dow{text-align:center;font-size:11px;color:var(--sub);padding:4px 0;font-weight:500}
-.cal-day{text-align:center;padding:2px;cursor:pointer;min-height:54px;display:flex;flex-direction:column;align-items:center;gap:1px;border-radius:8px;transition:background .1s}
-.cal-day:active{background:var(--bg)}
-.dn{font-size:14px;font-weight:500;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:50%}
-.cal-day.today .dn{background:var(--accent);color:#fff}
-.cal-day.sel{background:#e6f1fb;border-radius:8px}
-.cal-day.sun .dn{color:var(--red)}
-.cal-day.sat .dn{color:var(--accent)}
-.cal-day.other .dn{color:#c7c7cc}
-.dot-row{display:flex;gap:2px;justify-content:center;flex-wrap:wrap;min-height:8px}
-.dot{width:5px;height:5px;border-radius:50%}
-.dot-self{background:var(--accent)}
-.dot-sub{background:var(--accent2)}
-
-/* summary cards */
-.sum-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 16px}
-.sum-card{background:var(--card);border-radius:12px;padding:12px;border:0.5px solid var(--line)}
-.sl{font-size:11px;color:var(--sub);margin-bottom:4px}
-.sv{font-size:19px;font-weight:700}
-.sv.green{color:var(--green)}
-
-/* entry cards */
-.sec-hd{font-size:12px;font-weight:600;color:var(--sub);letter-spacing:.5px;padding:12px 16px 6px}
-.ecard{background:var(--card);margin:0 16px 8px;border-radius:12px;border:0.5px solid var(--line);overflow:hidden}
-.ecard-hd{display:flex;align-items:flex-start;justify-content:space-between;padding:12px 14px}
-.ecard-site{font-size:14px;font-weight:600}
-.ecard-co{font-size:12px;color:var(--sub);margin-top:2px}
-.ecard-amt{font-size:15px;font-weight:700;color:var(--accent);text-align:right}
-.ecard-ninku{font-size:11px;color:var(--sub);margin-top:2px;text-align:right}
-.ecard-foot{border-top:0.5px solid var(--line);padding:8px 14px;display:flex;gap:10px;flex-wrap:wrap}
-.etag{font-size:11px;color:var(--sub);display:flex;align-items:center;gap:3px}
-.ecard-actions{border-top:0.5px solid var(--line);display:flex}
-.ecard-btn{flex:1;padding:10px;background:none;border:none;cursor:pointer;font-size:13px;color:var(--sub)}
-.ecard-btn:active{background:var(--bg)}
-.ecard-btn.del{color:var(--red)}
-
-/* FAB */
-.fab{width:54px;height:54px;border-radius:50%;background:var(--accent);color:#fff;border:none;cursor:pointer;font-size:28px;display:flex;align-items:center;justify-content:center;position:fixed;bottom:calc(78px + var(--safe-bot));right:18px;z-index:150;box-shadow:0 2px 10px rgba(26,79,160,.4)}
-.fab:active{transform:scale(.95)}
-
-/* modal */
-.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:flex-end;justify-content:center}
-.modal-bg.open{display:flex}
-.modal{background:var(--card);border-radius:20px 20px 0 0;width:100%;max-width:430px;max-height:92dvh;overflow-y:auto;padding-bottom:calc(20px + var(--safe-bot))}
-.modal-handle{width:36px;height:4px;background:var(--line);border-radius:2px;margin:12px auto 0}
-.modal-title{font-size:17px;font-weight:700;padding:14px 20px 12px;border-bottom:0.5px solid var(--line)}
-.modal-body{padding:16px 20px}
-
-/* form */
-.field{margin-bottom:14px}
-.field label{font-size:12px;color:var(--sub);font-weight:600;display:block;margin-bottom:5px}
-.field input,.field select,.field textarea{width:100%;border:0.5px solid var(--line);border-radius:10px;padding:11px 13px;font-size:15px;background:var(--card);color:var(--ink);-webkit-appearance:none;appearance:none}
-.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--accent);border-width:1.5px}
-.field-r2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-
-/* type selector */
-.type-sel{display:flex;gap:6px;margin-bottom:16px}
-.type-btn{flex:1;padding:9px 4px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--sub);font-size:13px;font-weight:600;cursor:pointer;text-align:center;transition:all .15s}
-.type-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
-
-/* buttons */
-.btn-primary{width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;margin-top:6px}
-.btn-primary:active{opacity:.85}
-.btn-secondary{width:100%;padding:13px;background:var(--card);color:var(--accent);border:1.5px solid var(--accent);border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;margin-top:8px}
-.btn-gold{width:100%;padding:13px;background:var(--accent2);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;margin-top:8px}
-
-/* invoice screen */
-.co-tabs{display:flex;gap:6px;padding:10px 16px;overflow-x:auto;scrollbar-width:none}
-.co-tabs::-webkit-scrollbar{display:none}
-.co-chip{padding:7px 16px;border-radius:20px;border:1px solid var(--line);background:var(--card);color:var(--sub);font-size:13px;cursor:pointer;white-space:nowrap;flex-shrink:0}
-.co-chip.active{background:var(--accent);color:#fff;border-color:var(--accent)}
-
-/* demen table */
-.tbl-wrap{overflow-x:auto;margin:0 16px 12px;border-radius:10px;border:0.5px solid var(--line)}
-.demen{width:100%;border-collapse:collapse;font-size:11px;min-width:560px}
-.demen th{background:var(--accent);color:#fff;padding:7px 6px;text-align:center;font-weight:600;font-size:10px;white-space:nowrap}
-.demen td{padding:5px 6px;border-bottom:0.5px solid var(--line);text-align:center;white-space:nowrap}
-.demen tr:last-child td{border-bottom:none}
-.demen .right{text-align:right}
-.demen tfoot td{background:var(--bg);font-weight:700;font-size:11px}
-
-/* invoice box */
-.inv-box{background:var(--card);margin:0 16px;border-radius:12px;border:0.5px solid var(--line);padding:18px}
-.inv-hd{text-align:center;padding-bottom:14px;border-bottom:1.5px solid var(--ink);margin-bottom:14px}
-.inv-hd-title{font-size:22px;font-weight:700;letter-spacing:6px}
-.inv-hd-to{font-size:15px;font-weight:700;margin:10px 0 4px}
-.inv-hd-date{font-size:12px;color:var(--sub)}
-.inv-badge{display:inline-block;font-size:11px;color:var(--green);background:#eaf3de;padding:3px 10px;border-radius:20px;margin-top:6px}
-.inv-amt-box{background:var(--bg);border-radius:10px;padding:14px;text-align:center;margin:0 0 14px}
-.inv-amt-lbl{font-size:12px;color:var(--sub);margin-bottom:4px}
-.inv-amt-val{font-size:28px;font-weight:700;color:var(--accent)}
-.inv-amt-note{font-size:11px;color:var(--sub);margin-top:2px}
-.inv-sec{margin-bottom:12px}
-.inv-sec-title{font-size:11px;font-weight:700;color:var(--sub);letter-spacing:.5px;border-bottom:0.5px solid var(--line);padding-bottom:4px;margin-bottom:6px}
-.inv-row{display:flex;justify-content:space-between;padding:3px 0;font-size:13px}
-.inv-row .lbl{color:var(--sub)}
-.inv-row .val{font-weight:500}
-.inv-total{display:flex;justify-content:space-between;padding:10px 0;font-size:15px;font-weight:700;border-top:2px solid var(--ink);margin-top:6px}
-.inv-bank{background:var(--bg);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--sub);line-height:1.9;margin-top:12px}
-.inv-bank strong{color:var(--ink);font-size:13px;display:block;margin-bottom:2px}
-.inv-sender{background:var(--bg);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--sub);line-height:1.9;margin-top:8px}
-.inv-sender strong{color:var(--ink);font-size:13px;display:block;margin-bottom:2px}
-
-/* settings */
-.st-section{background:var(--card);margin:0 16px 16px;border-radius:12px;border:0.5px solid var(--line);overflow:hidden}
-.st-row{display:flex;align-items:center;padding:12px 16px;border-bottom:0.5px solid var(--line);gap:12px;min-height:50px}
-.st-row:last-child{border-bottom:none}
-.st-icon{font-size:18px;width:22px;text-align:center;flex-shrink:0;color:var(--accent)}
-.st-label{font-size:14px;flex:1}
-.st-input{flex:2;border:0.5px solid var(--line);border-radius:8px;padding:7px 10px;font-size:14px;background:var(--bg);color:var(--ink);-webkit-appearance:none;min-width:0}
-.st-select{flex:1.5;border:0.5px solid var(--line);border-radius:8px;padding:7px 10px;font-size:14px;background:var(--bg);color:var(--ink);-webkit-appearance:none;min-width:0}
-.toggle{width:44px;height:26px;background:var(--line);border-radius:13px;cursor:pointer;border:none;position:relative;transition:background .2s;flex-shrink:0}
-.toggle.on{background:var(--accent)}
-.toggle::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
-.toggle.on::after{left:21px}
-
-/* misc */
-.empty{text-align:center;padding:48px 16px;color:var(--sub)}
-.empty .icon{font-size:48px;margin-bottom:12px}
-.empty p{font-size:14px;margin-top:6px}
-.notice{background:#e6f1fb;border-radius:10px;padding:10px 14px;font-size:12px;color:#0c447c;margin:0 16px 12px;line-height:1.7}
-</style>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-
-<!-- CALENDAR SCREEN -->
 <div id="sc-cal" class="screen active">
   <div class="topbar">
     <div class="topbar-row">
@@ -175,660 +20,121 @@ body{font-family:-apple-system,'Hiragino Sans','Hiragino Kaku Gothic ProN',sans-
         <div class="topbar-title">GENBA BOX</div>
         <div class="topbar-sub" id="cal-sub"></div>
       </div>
+      <button class="ghost-btn" id="toggle-sales-btn">売上表示</button>
     </div>
   </div>
   <div class="month-nav">
-    <button onclick="changeMonth(-1)" aria-label="前月">&#8249;</button>
+    <button id="prev-month-btn" aria-label="前月">&#8249;</button>
     <span class="month-label" id="cal-mnav"></span>
-    <button onclick="changeMonth(1)" aria-label="次月">&#8250;</button>
+    <button id="next-month-btn" aria-label="次月">&#8250;</button>
   </div>
   <div class="cal-grid" id="cal-grid"></div>
   <div class="sum-grid" id="sum-grid"></div>
-  <div class="sec-hd" id="day-hd" style="display:none"></div>
+  <div class="sec-hd" id="day-hd"></div>
   <div id="day-entries"></div>
-  <button class="fab" onclick="openModal('self')" aria-label="追加">&#xff0b;</button>
+  <button class="fab" id="fab-main" aria-label="追加">＋</button>
 </div>
 
-<!-- SUBCON SCREEN -->
 <div id="sc-sub" class="screen">
   <div class="topbar">
-    <div class="topbar-row">
-      <div>
-        <div class="topbar-title">外注管理</div>
-        <div class="topbar-sub" id="sub-sub"></div>
-      </div>
-    </div>
+    <div class="topbar-title">外注管理</div>
+    <div class="topbar-sub" id="sub-sub"></div>
   </div>
   <div class="month-nav">
-    <button onclick="changeMonth(-1)">&#8249;</button>
+    <button id="sub-prev-month-btn">&#8249;</button>
     <span class="month-label" id="sub-mnav"></span>
-    <button onclick="changeMonth(1)">&#8250;</button>
+    <button id="sub-next-month-btn">&#8250;</button>
   </div>
-  <div id="sub-body" style="padding-top:8px"></div>
-  <button class="fab" onclick="openModal('sub')" aria-label="外注追加">&#xff0b;</button>
+  <div id="sub-body"></div>
+  <button class="fab" id="fab-sub" aria-label="外注追加">＋</button>
 </div>
 
-<!-- INVOICE SCREEN -->
 <div id="sc-inv" class="screen">
   <div class="topbar">
-    <div class="topbar-row">
-      <div>
-        <div class="topbar-title">出面表・請求書</div>
-        <div class="topbar-sub" id="inv-sub"></div>
-      </div>
-    </div>
+    <div class="topbar-title">出面表・請求書</div>
+    <div class="topbar-sub" id="inv-sub"></div>
   </div>
   <div class="month-nav">
-    <button onclick="changeMonth(-1)">&#8249;</button>
+    <button id="inv-prev-month-btn">&#8249;</button>
     <span class="month-label" id="inv-mnav"></span>
-    <button onclick="changeMonth(1)">&#8250;</button>
+    <button id="inv-next-month-btn">&#8250;</button>
   </div>
-  <div style="padding:10px 16px 0;font-size:12px;color:var(--sub);font-weight:600">会社を選択</div>
+  <div class="inline-head">会社を選択</div>
   <div class="co-tabs" id="co-tabs"></div>
   <div id="inv-body"></div>
 </div>
 
-<!-- SETTINGS SCREEN -->
 <div id="sc-st" class="screen">
-  <div class="topbar"><div class="topbar-title">設定</div></div>
+  <div class="topbar">
+    <div class="topbar-title">設定</div>
+  </div>
+
+  <div class="sec-hd">登録会社</div>
+  <div class="st-section wide-section">
+    <div class="field pad-field">
+      <label>会社名を1行ずつ登録</label>
+      <textarea id="st-companies" placeholder="株式会社○○&#10;有限会社△△"></textarea>
+    </div>
+  </div>
+
+  <div class="sec-hd">経費項目</div>
+  <div class="st-section wide-section">
+    <div class="field pad-field">
+      <label>経費項目を1行ずつ設定</label>
+      <textarea id="st-expenses" placeholder="交通費&#10;駐車場代&#10;宿泊費"></textarea>
+    </div>
+  </div>
 
   <div class="sec-hd">自分の情報</div>
   <div class="st-section">
-    <div class="st-row"><span class="st-icon">&#128100;</span><span class="st-label">氏名 / 屋号</span><input class="st-input" id="st-name" placeholder="山田 職人"></div>
-    <div class="st-row"><span class="st-icon">&#128205;</span><span class="st-label">住所</span><input class="st-input" id="st-addr" placeholder="埼玉県さいたま市..."></div>
-    <div class="st-row"><span class="st-icon">&#128222;</span><span class="st-label">電話番号</span><input class="st-input" id="st-tel" type="tel" placeholder="090-0000-0000"></div>
-    <div class="st-row"><span class="st-icon">&#127970;</span><span class="st-label">会社名</span><input class="st-input" id="st-co" placeholder="株式会社〇〇"></div>
+    <div class="st-row"><span class="st-label">氏名 / 屋号</span><input class="st-input" id="st-name" placeholder="山田職人"></div>
+    <div class="st-row"><span class="st-label">住所</span><input class="st-input" id="st-addr" placeholder="埼玉県..." ></div>
+    <div class="st-row"><span class="st-label">電話番号</span><input class="st-input" id="st-tel" placeholder="090-0000-0000"></div>
+    <div class="st-row"><span class="st-label">会社名</span><input class="st-input" id="st-co" placeholder="株式会社○○"></div>
   </div>
 
   <div class="sec-hd">振込先口座</div>
   <div class="st-section">
-    <div class="st-row"><span class="st-icon">&#127981;</span><span class="st-label">銀行名</span><input class="st-input" id="st-bank" placeholder="楽天銀行"></div>
-    <div class="st-row"><span class="st-icon">&#128336;</span><span class="st-label">支店名</span><input class="st-input" id="st-branch" placeholder="第四営業"></div>
-    <div class="st-row"><span class="st-icon">&#35;</span><span class="st-label">口座種別・番号</span><input class="st-input" id="st-accno" placeholder="普通 1234567"></div>
-    <div class="st-row"><span class="st-icon">&#128196;</span><span class="st-label">口座名義</span><input class="st-input" id="st-accname" placeholder="カ）〇〇"></div>
+    <div class="st-row"><span class="st-label">銀行名</span><input class="st-input" id="st-bank" placeholder="楽天銀行"></div>
+    <div class="st-row"><span class="st-label">支店名</span><input class="st-input" id="st-branch" placeholder="第四営業支店"></div>
+    <div class="st-row"><span class="st-label">口座番号</span><input class="st-input" id="st-accno" placeholder="普通 1234567"></div>
+    <div class="st-row"><span class="st-label">口座名義</span><input class="st-input" id="st-accname" placeholder="カ）○○"></div>
   </div>
 
-  <div class="sec-hd">請求書・インボイス設定</div>
+  <div class="sec-hd">請求設定</div>
   <div class="st-section">
-    <div class="st-row"><span class="st-icon">&#128196;</span><span class="st-label">インボイス表示</span><button class="toggle on" id="tgl-inv" onclick="toggleSetting('inv')"></button></div>
-    <div class="st-row" id="inv-no-row"><span class="st-icon">&#128273;</span><span class="st-label">登録番号</span><input class="st-input" id="st-invno" placeholder="T0000000000000"></div>
-    <div class="st-row"><span class="st-icon">&#37;</span><span class="st-label">消費税率</span>
-      <select class="st-select" id="st-tax">
-        <option value="10">10%（標準）</option>
-        <option value="8">8%（軽減）</option>
-        <option value="0">非課税</option>
-      </select>
-    </div>
+    <div class="st-row"><span class="st-label">インボイス表示</span><button class="toggle on" id="tgl-inv"></button></div>
+    <div class="st-row" id="inv-no-row"><span class="st-label">登録番号</span><input class="st-input" id="st-invno" placeholder="T0000000000000"></div>
+    <div class="st-row"><span class="st-label">消費税率</span><select class="st-select" id="st-tax"><option value="10">10%</option><option value="8">8%</option><option value="0">0%</option></select></div>
   </div>
 
-  <div class="sec-hd">単価マスタ（デフォルト）</div>
+  <div class="sec-hd">単価設定</div>
   <div class="st-section">
-    <div class="st-row"><span class="st-icon">&#9728;</span><span class="st-label">通常単価（/日）</span><input class="st-input" id="st-tanka" type="number" placeholder="30000"></div>
-    <div class="st-row"><span class="st-icon">&#127769;</span><span class="st-label">夜間単価（/日）</span><input class="st-input" id="st-ntanka" type="number" placeholder="40000"></div>
-    <div class="st-row"><span class="st-icon">&#128336;</span><span class="st-label">残業単価（/h）</span><input class="st-input" id="st-ottanka" type="number" placeholder="4688"></div>
+    <div class="st-row"><span class="st-label">日勤単価</span><input class="st-input" id="st-tanka" type="number" placeholder="30000"></div>
+    <div class="st-row"><span class="st-label">夜勤単価</span><input class="st-input" id="st-ntanka" type="number" placeholder="40000"></div>
+    <div class="st-row"><span class="st-label">残業単価</span><input class="st-input" id="st-ottanka" type="number" placeholder="4688"></div>
   </div>
 
-  <div style="padding:4px 16px 20px">
-    <button class="btn-primary" onclick="saveSettings()">&#10003; 設定を保存</button>
+  <div class="save-wrap">
+    <button class="btn-primary" id="save-settings-btn">設定を保存</button>
   </div>
 </div>
 
-<!-- BOTTOM NAV -->
 <nav class="nav">
-  <button class="nav-item active" id="nav-cal" onclick="goScreen('cal')">
-    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-    カレンダー
-  </button>
-  <button class="nav-item" id="nav-sub" onclick="goScreen('sub')">
-    <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-    外注
-  </button>
-  <button class="nav-item" id="nav-inv" onclick="goScreen('inv')">
-    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10,9 9,9 8,9"/></svg>
-    請求書
-  </button>
-  <button class="nav-item" id="nav-st" onclick="goScreen('st')">
-    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-    設定
-  </button>
+  <button class="nav-item active" data-screen="cal">カレンダー</button>
+  <button class="nav-item" data-screen="sub">外注</button>
+  <button class="nav-item" data-screen="inv">請求</button>
+  <button class="nav-item" data-screen="st">設定</button>
 </nav>
 
-<!-- MODAL -->
-<div class="modal-bg" id="modal-bg" onclick="closeBg(event)">
-  <div class="modal" id="modal">
+<div class="modal-bg" id="modal-bg">
+  <div class="modal">
     <div class="modal-handle"></div>
-    <div class="modal-title" id="modal-title">現場を追加</div>
+    <div class="modal-title" id="modal-title">予定を追加</div>
     <div class="modal-body" id="modal-body"></div>
   </div>
 </div>
 
-<script>
-// ── DATA ──────────────────────────────────────────────
-let D = {entries:[], settings:{
-  name:'', addr:'', tel:'', co:'', bank:'', branch:'', accno:'', accname:'',
-  invno:'', showInv:true, taxRate:10, tanka:30000, ntanka:40000, ottanka:4688
-}};
-try{ const s = localStorage.getItem('shokunin3'); if(s) D = JSON.parse(s); } catch(e){}
-
-const save = () => { try{ localStorage.setItem('shokunin3', JSON.stringify(D)); }catch(e){} };
-const fmt  = n => Math.round(Number(n)||0).toLocaleString('ja-JP');
-const yen  = n => '¥' + fmt(n);
-
-const today = new Date();
-let Y = today.getFullYear(), M = today.getMonth();
-let selDay = null;
-let editId = null;
-
-// ── NAVIGATION ────────────────────────────────────────
-function goScreen(name) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('sc-' + name).classList.add('active');
-  document.getElementById('nav-' + name).classList.add('active');
-  renderAll();
-}
-
-function changeMonth(d) {
-  M += d;
-  if(M > 11){ M = 0; Y++; }
-  if(M < 0){ M = 11; Y--; }
-  selDay = null;
-  renderAll();
-}
-
-// ── RENDER ALL ────────────────────────────────────────
-function renderAll() {
-  const ml = `${Y}年${M+1}月`;
-  ['cal-mnav','sub-mnav','inv-mnav'].forEach(id => {
-    const el = document.getElementById(id); if(el) el.textContent = ml;
-  });
-  ['cal-sub','sub-sub','inv-sub'].forEach(id => {
-    const el = document.getElementById(id); if(el) el.textContent = ml;
-  });
-  renderCalendar();
-  renderSubBody();
-  renderInvScreen();
-  loadSettings();
-}
-
-// ── CALENDAR ──────────────────────────────────────────
-function renderCalendar() {
-  const first = new Date(Y, M, 1).getDay();
-  const days  = new Date(Y, M+1, 0).getDate();
-  const DOW   = ['日','月','火','水','木','金','土'];
-
-  let html = DOW.map((d,i) =>
-    `<div class="cal-dow" style="${i===0?'color:var(--red)':i===6?'color:var(--accent)':''}">${d}</div>`
-  ).join('');
-
-  for(let i=0; i<first; i++) html += `<div class="cal-day other"><span class="dn"></span></div>`;
-
-  for(let d=1; d<=days; d++) {
-    const dow = (first+d-1)%7;
-    const isToday = d===today.getDate() && M===today.getMonth() && Y===today.getFullYear();
-    const isSel   = d === selDay;
-    const se = D.entries.filter(e=>e.type==='self'&&e.y===Y&&e.m===M&&e.d===d);
-    const su = D.entries.filter(e=>e.type==='sub'&&e.y===Y&&e.m===M&&e.d===d);
-    const dots = se.map(()=>`<div class="dot dot-self"></div>`).join('') +
-                 su.map(()=>`<div class="dot dot-sub"></div>`).join('');
-    html += `<div class="cal-day${isToday?' today':''}${isSel?' sel':''}${dow===0?' sun':dow===6?' sat':''}"
-      onclick="selDay2(${d})">
-      <span class="dn">${d}</span>
-      <div class="dot-row">${dots}</div>
-    </div>`;
-  }
-  document.getElementById('cal-grid').innerHTML = html;
-
-  // summary
-  const selfE = D.entries.filter(e=>e.type==='self'&&e.y===Y&&e.m===M);
-  let totalAmt=0, totalDays=0;
-  selfE.forEach(e=>{ const r=calc(e); totalAmt+=r.grand; totalDays+=parseFloat(e.ninku||0); });
-  document.getElementById('sum-grid').innerHTML = `
-    <div class="sum-card"><div class="sl">今月の稼働</div><div class="sv">${totalDays}人工</div></div>
-    <div class="sum-card"><div class="sl">今月の売上（税込）</div><div class="sv green">${yen(totalAmt)}</div></div>`;
-
-  // day entries
-  const dh = document.getElementById('day-hd');
-  const de = document.getElementById('day-entries');
-  if(selDay) {
-    const dayE = D.entries.filter(e=>e.y===Y&&e.m===M&&e.d===selDay);
-    dh.style.display = 'block';
-    dh.textContent = `${M+1}月${selDay}日`;
-    de.innerHTML = dayE.length ? dayE.map(ecard).join('') :
-      `<div class="empty"><div class="icon">📋</div><p>記録なし<br>＋で追加</p></div>`;
-  } else {
-    dh.style.display = 'none';
-    de.innerHTML = '';
-  }
-}
-
-function selDay2(d) { selDay = selDay===d ? null : d; renderCalendar(); }
-
-// ── CALC ──────────────────────────────────────────────
-function calc(e) {
-  const tax = parseFloat(D.settings.taxRate) || 10;
-  const labor = (parseFloat(e.ninku)||0)*(parseFloat(e.tanka)||0);
-  const ot    = (parseFloat(e.oth)||0)*(parseFloat(e.ottanka)||0);
-  const laborSub = labor + ot;
-  const taxAmt = Math.round(laborSub * tax / 100);
-  const exp = (parseFloat(e.kotsu)||0)+(parseFloat(e.parking)||0)+
-              (parseFloat(e.shuku)||0)+(parseFloat(e.gas)||0)+
-              (parseFloat(e.zai)||0)+(parseFloat(e.other)||0);
-  return { labor, ot, laborSub, taxAmt, exp, grand: laborSub+taxAmt+exp };
-}
-
-// ── ENTRY CARD ────────────────────────────────────────
-function ecard(e) {
-  const r = calc(e);
-  const wlabel = e.wt==='night'?'🌙 夜間': e.wt==='ot'?'⏰ 残業':'☀ 通常';
-  const isSub = e.type==='sub';
-  const tags = [];
-  if(e.kotsu>0)  tags.push(`<span class="etag">🚃 ${fmt(e.kotsu)}</span>`);
-  if(e.parking>0)tags.push(`<span class="etag">🅿 ${fmt(e.parking)}</span>`);
-  if(e.shuku>0)  tags.push(`<span class="etag">🛏 ${fmt(e.shuku)}</span>`);
-  if(e.gas>0)    tags.push(`<span class="etag">⛽ ${fmt(e.gas)}</span>`);
-  if(e.zai>0)    tags.push(`<span class="etag">🔧 ${fmt(e.zai)}</span>`);
-  if(e.other>0)  tags.push(`<span class="etag">📌 ${fmt(e.other)}</span>`);
-  return `<div class="ecard">
-    <div class="ecard-hd">
-      <div>
-        <div class="ecard-site">${e.site||'現場名なし'}</div>
-        <div class="ecard-co">${isSub?`外注: ${e.subname||'-'}　`:''}${e.co||''}</div>
-        <div class="ecard-co" style="margin-top:2px">${wlabel}</div>
-      </div>
-      <div>
-        <div class="ecard-amt">${yen(r.grand)}</div>
-        <div class="ecard-ninku">${e.ninku||0}人工</div>
-      </div>
-    </div>
-    ${tags.length?`<div class="ecard-foot">${tags.join('')}</div>`:''}
-    <div class="ecard-actions">
-      <button class="ecard-btn" onclick="editEntry(${e.id})">✏ 編集</button>
-      <button class="ecard-btn" onclick="gcalEntry(${e.id})">📅 カレンダー</button>
-      <button class="ecard-btn del" onclick="delEntry(${e.id})">🗑 削除</button>
-    </div>
-  </div>`;
-}
-
-// ── SUBCON ────────────────────────────────────────────
-function renderSubBody() {
-  const subs = D.entries.filter(e=>e.type==='sub'&&e.y===Y&&e.m===M);
-  const body = document.getElementById('sub-body');
-  if(!subs.length) {
-    body.innerHTML=`<div class="empty"><div class="icon">👷</div><p>外注記録なし<br>＋ボタンから追加</p></div>`;return;
-  }
-  const byName = {};
-  subs.forEach(e=>{
-    const n = e.subname||'不明';
-    if(!byName[n]) byName[n]={entries:[],total:0,days:0};
-    const r = calc(e);
-    byName[n].entries.push(e); byName[n].total+=r.grand; byName[n].days+=parseFloat(e.ninku||0);
-  });
-  body.innerHTML = Object.entries(byName).map(([name,{entries,total,days}])=>`
-    <div class="sec-hd" style="padding-top:6px">👷 ${name}</div>
-    ${entries.map(ecard).join('')}
-    <div style="margin:0 16px 12px;text-align:right;font-size:13px;color:var(--sub)">
-      小計: <strong style="color:var(--ink);font-size:14px">${yen(total)}</strong>（${days}人工）
-    </div>
-  `).join('');
-}
-
-// ── INVOICE SCREEN ────────────────────────────────────
-function renderInvScreen() {
-  const selfE = D.entries.filter(e=>e.type==='self'&&e.y===Y&&e.m===M);
-  const cos = [...new Set(selfE.map(e=>e.co).filter(Boolean))];
-  const tabDiv = document.getElementById('co-tabs');
-  if(!cos.length) {
-    tabDiv.innerHTML='';
-    document.getElementById('inv-body').innerHTML=`<div class="empty"><div class="icon">📄</div><p>現場記録がありません<br>カレンダーから追加してください</p></div>`;
-    return;
-  }
-  let selCo = tabDiv.querySelector('.co-chip.active')?.dataset.co;
-  if(!selCo||!cos.includes(selCo)) selCo = cos[0];
-  tabDiv.innerHTML = cos.map(c=>
-    `<div class="co-chip${c===selCo?' active':''}" data-co="${c}" onclick="pickCo(this,'${c}')">${c}</div>`
-  ).join('');
-  buildInvoice(selCo);
-}
-
-function pickCo(el,co) {
-  document.querySelectorAll('.co-chip').forEach(c=>c.classList.remove('active'));
-  el.classList.add('active');
-  buildInvoice(co);
-}
-
-function buildInvoice(co) {
-  const s  = D.settings;
-  const es = D.entries.filter(e=>e.type==='self'&&e.y===Y&&e.m===M&&e.co===co);
-  const tax = parseFloat(s.taxRate)||10;
-  let normalD=0, nightD=0, otH=0, normalT=0, nightT=0, otT=0;
-  let kotsu=0, parking=0, shuku=0, gas=0, zai=0, other=0;
-  es.forEach(e=>{
-    const n=parseFloat(e.ninku||0), t=parseFloat(e.tanka||0);
-    if(e.wt==='night'){nightD+=n;nightT=nightT||t;}
-    else{normalD+=n;normalT=normalT||t;}
-    otH+=parseFloat(e.oth||0); otT=otT||parseFloat(e.ottanka||0);
-    kotsu+=parseFloat(e.kotsu||0); parking+=parseFloat(e.parking||0);
-    shuku+=parseFloat(e.shuku||0); gas+=parseFloat(e.gas||0);
-    zai+=parseFloat(e.zai||0);   other+=parseFloat(e.other||0);
-  });
-  const labN = normalD*(normalT||parseFloat(s.tanka)||30000);
-  const labNi= nightD*(nightT||parseFloat(s.ntanka)||40000);
-  const labOT= otH*(otT||parseFloat(s.ottanka)||4688);
-  const laborSub = labN+labNi+labOT;
-  const taxAmt = Math.round(laborSub*tax/100);
-  const expSub = kotsu+parking+shuku+gas+zai+other;
-  const grand  = laborSub+taxAmt+expSub;
-  const lastDay = new Date(Y,M+1,0).getDate();
-  const invDate = `${Y}年${M+1}月${lastDay}日`;
-
-  // demen rows
-  const dRows = es.map(e=>{
-    const r=calc(e);
-    return `<tr>
-      <td>${e.d}日</td>
-      <td style="text-align:left;max-width:90px;overflow:hidden">${e.site||'-'}</td>
-      <td>${e.ninku||0}</td>
-      <td class="right">${fmt(e.tanka)}</td>
-      <td class="right">${fmt((parseFloat(e.ninku)||0)*(parseFloat(e.tanka)||0))}</td>
-      <td class="right">${e.oth||0}</td>
-      <td class="right">${fmt(e.kotsu||0)}</td>
-      <td class="right">${fmt(e.parking||0)}</td>
-      <td class="right">${fmt(r.grand)}</td>
-    </tr>`;
-  }).join('');
-
-  document.getElementById('inv-body').innerHTML = `
-    <div style="padding:0 16px 12px">
-      <div class="sec-hd" style="padding:10px 0 6px">出面表</div>
-      <div class="tbl-wrap">
-        <table class="demen">
-          <thead><tr><th>日</th><th>現場名</th><th>人工</th><th>単価</th><th>人工計</th><th>残業H</th><th>交通費</th><th>駐車場</th><th>金額</th></tr></thead>
-          <tbody>${dRows}</tbody>
-          <tfoot><tr>
-            <td colspan="2" style="text-align:right">小計</td>
-            <td>${normalD+nightD}</td><td></td>
-            <td class="right">${fmt(labN+labNi)}</td>
-            <td class="right">${fmt(otH)}</td>
-            <td class="right">${fmt(kotsu)}</td>
-            <td class="right">${fmt(parking)}</td>
-            <td class="right">${fmt(grand)}</td>
-          </tr></tfoot>
-        </table>
-      </div>
-    </div>
-
-    <div class="inv-box">
-      <div class="inv-hd">
-        <div class="inv-hd-title">御　請　求　書</div>
-        <div class="inv-hd-to">${co}　御中</div>
-        <div class="inv-hd-date">${invDate}</div>
-        ${s.showInv&&s.invno?`<div class="inv-badge">登録番号：${s.invno}</div>`:''}
-      </div>
-      <div class="inv-amt-box">
-        <div class="inv-amt-lbl">御請求金額</div>
-        <div class="inv-amt-val">${yen(grand)}</div>
-        <div class="inv-amt-note">※税込</div>
-      </div>
-
-      <div class="inv-sec">
-        <div class="inv-sec-title">人工・作業費</div>
-        ${normalD>0?`<div class="inv-row"><span class="lbl">通常　${normalD}人工 × ${yen(normalT||s.tanka||30000)}</span><span class="val">${yen(labN)}</span></div>`:''}
-        ${nightD>0?`<div class="inv-row"><span class="lbl">夜間　${nightD}人工 × ${yen(nightT||s.ntanka||40000)}</span><span class="val">${yen(labNi)}</span></div>`:''}
-        ${otH>0?`<div class="inv-row"><span class="lbl">残業　${otH}H × ${yen(otT||s.ottanka||4688)}</span><span class="val">${yen(labOT)}</span></div>`:''}
-        <div class="inv-row" style="border-top:0.5px solid var(--line);margin-top:4px;padding-top:6px"><span class="lbl">小計</span><span class="val">${yen(laborSub)}</span></div>
-        <div class="inv-row"><span class="lbl">消費税 ${tax}%</span><span class="val">${yen(taxAmt)}</span></div>
-      </div>
-
-      <div class="inv-sec">
-        <div class="inv-sec-title">諸経費</div>
-        ${kotsu>0?`<div class="inv-row"><span class="lbl">交通費</span><span class="val">${yen(kotsu)}</span></div>`:''}
-        ${parking>0?`<div class="inv-row"><span class="lbl">駐車場代</span><span class="val">${yen(parking)}</span></div>`:''}
-        ${shuku>0?`<div class="inv-row"><span class="lbl">宿泊代</span><span class="val">${yen(shuku)}</span></div>`:''}
-        ${gas>0?`<div class="inv-row"><span class="lbl">ガソリン代</span><span class="val">${yen(gas)}</span></div>`:''}
-        ${zai>0?`<div class="inv-row"><span class="lbl">資材等</span><span class="val">${yen(zai)}</span></div>`:''}
-        ${other>0?`<div class="inv-row"><span class="lbl">他諸経費</span><span class="val">${yen(other)}</span></div>`:''}
-        ${expSub===0?`<div class="inv-row"><span class="lbl">（なし）</span><span class="val">—</span></div>`:''}
-        <div class="inv-row" style="border-top:0.5px solid var(--line);margin-top:4px;padding-top:6px"><span class="lbl">諸経費小計</span><span class="val">${yen(expSub)}</span></div>
-      </div>
-
-      <div class="inv-total"><span>合　計（内税）</span><span>${yen(grand)}</span></div>
-
-      ${s.bank?`<div class="inv-bank"><strong>振込先口座</strong>銀行名　${s.bank}<br>支店名　${s.branch||''}<br>口座番号　${s.accno||''}<br>口座名義　${s.accname||''}</div>`:''}
-      ${s.name||s.co?`<div class="inv-sender"><strong>${s.co||s.name}</strong>${s.addr?s.addr+'<br>':''}${s.tel?'TEL '+s.tel:''}</div>`:''}
-    </div>
-
-    <div style="padding:12px 16px 20px;display:flex;flex-direction:column;gap:8px">
-      <button class="btn-primary" onclick="gcalSync('${co}')">📅 Googleカレンダーに同期</button>
-      <button class="btn-gold" onclick="copyText('${co}')">📋 請求書テキストをコピー</button>
-    </div>
-  `;
-}
-
-// ── GCAL ──────────────────────────────────────────────
-function gcalEntry(id) {
-  const e = D.entries.find(x=>x.id===id); if(!e) return;
-  const r = calc(e);
-  const ds = `${e.y}${String(e.m+1).padStart(2,'0')}${String(e.d).padStart(2,'0')}`;
-  const t = encodeURIComponent(`【${e.co||'現場'}】${e.site||''}`);
-  const d = encodeURIComponent(`会社：${e.co||'-'}\n現場：${e.site||'-'}\n人工：${e.ninku}日\n単価：${yen(e.tanka)}\n合計：${yen(r.grand)}\n交通費：${yen(e.kotsu||0)}\n駐車場：${yen(e.parking||0)}`);
-  window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${t}&dates=${ds}/${ds}&details=${d}`, '_blank');
-}
-
-function gcalSync(co) {
-  const es = D.entries.filter(e=>e.type==='self'&&e.y===Y&&e.m===M&&e.co===co);
-  if(!es.length){alert('対象の現場がありません');return;}
-  es.forEach(e => gcalEntry(e.id));
-}
-
-function copyText(co) {
-  const s  = D.settings;
-  const es = D.entries.filter(e=>e.type==='self'&&e.y===Y&&e.m===M&&e.co===co);
-  const tax = parseFloat(s.taxRate)||10;
-  let normalD=0,nightD=0,otH=0,normalT=0,nightT=0,otT=0;
-  let kotsu=0,parking=0,shuku=0,gas=0,zai=0,other=0;
-  es.forEach(e=>{
-    if(e.wt==='night'){nightD+=parseFloat(e.ninku||0);nightT=parseFloat(e.tanka||0);}
-    else{normalD+=parseFloat(e.ninku||0);normalT=normalT||parseFloat(e.tanka||0);}
-    otH+=parseFloat(e.oth||0);otT=otT||parseFloat(e.ottanka||0);
-    kotsu+=parseFloat(e.kotsu||0);parking+=parseFloat(e.parking||0);
-    shuku+=parseFloat(e.shuku||0);gas+=parseFloat(e.gas||0);
-    zai+=parseFloat(e.zai||0);other+=parseFloat(e.other||0);
-  });
-  const labN=normalD*(normalT||s.tanka||30000);
-  const labNi=nightD*(nightT||s.ntanka||40000);
-  const labOT=otH*(otT||s.ottanka||4688);
-  const laborSub=labN+labNi+labOT;
-  const taxAmt=Math.round(laborSub*tax/100);
-  const expSub=kotsu+parking+shuku+gas+zai+other;
-  const grand=laborSub+taxAmt+expSub;
-  const lastDay=new Date(Y,M+1,0).getDate();
-  let txt = `御請求書\n${co} 御中\n${Y}年${M+1}月${lastDay}日\n\n`;
-  if(normalD>0) txt+=`通常 ${normalD}人工\t${yen(labN)}\n`;
-  if(nightD>0)  txt+=`夜間 ${nightD}人工\t${yen(labNi)}\n`;
-  if(otH>0)     txt+=`残業 ${otH}H\t${yen(labOT)}\n`;
-  txt+=`小計\t${yen(laborSub)}\n消費税${tax}%\t${yen(taxAmt)}\n\n諸経費\n`;
-  if(kotsu>0)   txt+=`交通費\t${yen(kotsu)}\n`;
-  if(parking>0) txt+=`駐車場代\t${yen(parking)}\n`;
-  if(shuku>0)   txt+=`宿泊代\t${yen(shuku)}\n`;
-  if(gas>0)     txt+=`ガソリン代\t${yen(gas)}\n`;
-  if(zai>0)     txt+=`資材等\t${yen(zai)}\n`;
-  if(other>0)   txt+=`他諸経費\t${yen(other)}\n`;
-  txt+=`\n合計（内税）\t${yen(grand)}\n`;
-  if(s.showInv&&s.invno) txt+=`\n登録番号：${s.invno}\n`;
-  if(s.bank) txt+=`\n振込先：${s.bank} ${s.branch} ${s.accno} ${s.accname}\n`;
-  navigator.clipboard?.writeText(txt)
-    .then(()=>alert('コピーしました！\nメールやスプレッドシートに貼り付けできます。'))
-    .catch(()=>alert('コピーできませんでした。\n\n' + txt));
-}
-
-// ── MODAL ─────────────────────────────────────────────
-function openModal(type, id) {
-  editId = id || null;
-  const e = id ? D.entries.find(x=>x.id===id) : null;
-  const isSub = type==='sub' || (e&&e.type==='sub');
-  const s = D.settings;
-  const dateVal = e ? `${e.y}-${String(e.m+1).padStart(2,'0')}-${String(e.d).padStart(2,'0')}`
-    : selDay ? `${Y}-${String(M+1).padStart(2,'0')}-${String(selDay).padStart(2,'0')}` : '';
-
-  document.getElementById('modal-title').textContent = isSub ? '外注記録を'+(e?'編集':'追加') : '現場記録を'+(e?'編集':'追加');
-  document.getElementById('modal-body').innerHTML = `
-    ${isSub?`<div class="field"><label>外注職人名</label><input type="text" id="f-sub" value="${e?.subname||''}" placeholder="田中 職人"></div>`:''}
-
-    <div class="field"><label>作業種別</label>
-      <div class="type-sel" id="wt-sel">
-        <div class="type-btn${!e||e.wt==='normal'?' active':''}" data-wt="normal" onclick="pickWt(this)">☀ 通常</div>
-        <div class="type-btn${e?.wt==='night'?' active':''}" data-wt="night" onclick="pickWt(this)">🌙 夜間</div>
-        <div class="type-btn${e?.wt==='ot'?' active':''}" data-wt="ot" onclick="pickWt(this)">⏰ 残業</div>
-      </div>
-    </div>
-
-    <div class="field-r2">
-      <div class="field"><label>作業日</label><input type="date" id="f-date" value="${dateVal}"></div>
-      <div class="field"><label>会社名</label>
-        <input type="text" id="f-co" value="${e?.co||''}" placeholder="株式会社〇〇" list="co-dl">
-        <datalist id="co-dl">${[...new Set(D.entries.map(x=>x.co).filter(Boolean))].map(c=>`<option value="${c}">`).join('')}</datalist>
-      </div>
-    </div>
-
-    <div class="field"><label>現場名</label>
-      <input type="text" id="f-site" value="${e?.site||''}" placeholder="赤坂ガーデンシティ" list="site-dl">
-      <datalist id="site-dl">${[...new Set(D.entries.map(x=>x.site).filter(Boolean))].map(c=>`<option value="${c}">`).join('')}</datalist>
-    </div>
-
-    <div class="field-r2">
-      <div class="field"><label>人工（日）</label><input type="number" id="f-ninku" step="0.5" min="0" value="${e?.ninku||1}"></div>
-      <div class="field"><label>単価（円）</label><input type="number" id="f-tanka" step="1000" min="0" value="${e?.tanka||s.tanka||30000}" id2="tanka-inp"></div>
-    </div>
-
-    <div id="ot-area" style="${e?.wt==='ot'?'':'display:none'}">
-      <div class="field-r2">
-        <div class="field"><label>残業時間（h）</label><input type="number" id="f-oth" step="0.5" min="0" value="${e?.oth||0}"></div>
-        <div class="field"><label>残業単価（/h）</label><input type="number" id="f-ottanka" step="100" min="0" value="${e?.ottanka||s.ottanka||4688}"></div>
-      </div>
-    </div>
-
-    <div style="font-size:12px;font-weight:600;color:var(--sub);margin:12px 0 8px;letter-spacing:.3px">経費</div>
-    <div class="field-r2">
-      <div class="field"><label>🚃 交通費</label><input type="number" id="f-kotsu" step="10" min="0" value="${e?.kotsu||0}"></div>
-      <div class="field"><label>🅿 駐車場代</label><input type="number" id="f-parking" step="100" min="0" value="${e?.parking||0}"></div>
-    </div>
-    <div class="field-r2">
-      <div class="field"><label>🛏 宿泊代</label><input type="number" id="f-shuku" step="100" min="0" value="${e?.shuku||0}"></div>
-      <div class="field"><label>⛽ ガソリン代</label><input type="number" id="f-gas" step="100" min="0" value="${e?.gas||0}"></div>
-    </div>
-    <div class="field-r2">
-      <div class="field"><label>🔧 資材等</label><input type="number" id="f-zai" step="100" min="0" value="${e?.zai||0}"></div>
-      <div class="field"><label>📌 他諸経費</label><input type="number" id="f-other" step="100" min="0" value="${e?.other||0}"></div>
-    </div>
-    <div class="field"><label>メモ</label><input type="text" id="f-memo" value="${e?.memo||''}" placeholder="備考・特記事項"></div>
-
-    <button class="btn-primary" onclick="saveEntry('${isSub?'sub':'self'}')">💾 保存</button>
-    ${e?`<button class="btn-secondary" onclick="closeModal()">キャンセル</button>`:''}
-  `;
-  document.getElementById('modal-bg').classList.add('open');
-}
-
-function pickWt(el) {
-  document.querySelectorAll('#wt-sel .type-btn').forEach(b=>b.classList.remove('active'));
-  el.classList.add('active');
-  const wt = el.dataset.wt;
-  document.getElementById('ot-area').style.display = wt==='ot' ? 'block' : 'none';
-  const ti = document.getElementById('f-tanka');
-  const s = D.settings;
-  if(ti) ti.value = wt==='night' ? (s.ntanka||40000) : (s.tanka||30000);
-}
-
-function saveEntry(type) {
-  const dv = document.getElementById('f-date')?.value;
-  if(!dv){alert('作業日を入力してください');return;}
-  const [ey,em,ed] = dv.split('-').map(Number);
-  const wt = document.querySelector('#wt-sel .type-btn.active')?.dataset.wt || 'normal';
-  const entry = {
-    id: editId || Date.now(), type,
-    y:ey, m:em-1, d:ed, wt,
-    subname: document.getElementById('f-sub')?.value||'',
-    co:   document.getElementById('f-co')?.value||'',
-    site: document.getElementById('f-site')?.value||'',
-    ninku:   document.getElementById('f-ninku')?.value||0,
-    tanka:   document.getElementById('f-tanka')?.value||0,
-    oth:     document.getElementById('f-oth')?.value||0,
-    ottanka: document.getElementById('f-ottanka')?.value||0,
-    kotsu:   document.getElementById('f-kotsu')?.value||0,
-    parking: document.getElementById('f-parking')?.value||0,
-    shuku:   document.getElementById('f-shuku')?.value||0,
-    gas:     document.getElementById('f-gas')?.value||0,
-    zai:     document.getElementById('f-zai')?.value||0,
-    other:   document.getElementById('f-other')?.value||0,
-    memo:    document.getElementById('f-memo')?.value||''
-  };
-  if(editId) D.entries = D.entries.filter(e=>e.id!==editId);
-  D.entries.push(entry);
-  save();
-  selDay = ed; Y=ey; M=em-1;
-  closeModal();
-  renderAll();
-}
-
-function editEntry(id) {
-  const e = D.entries.find(x=>x.id===id);
-  if(e) openModal(e.type, id);
-}
-
-function delEntry(id) {
-  if(!confirm('この記録を削除しますか？')) return;
-  D.entries = D.entries.filter(e=>e.id!==id);
-  save(); renderAll();
-}
-
-function closeModal() { document.getElementById('modal-bg').classList.remove('open'); }
-function closeBg(e) { if(e.target===document.getElementById('modal-bg')) closeModal(); }
-
-// ── SETTINGS ─────────────────────────────────────────
-function loadSettings() {
-  const s = D.settings;
-  const pairs = {
-    'st-name':s.name,'st-addr':s.addr,'st-tel':s.tel,'st-co':s.co,
-    'st-bank':s.bank,'st-branch':s.branch,'st-accno':s.accno,'st-accname':s.accname,
-    'st-invno':s.invno,'st-tanka':s.tanka,'st-ntanka':s.ntanka,'st-ottanka':s.ottanka
-  };
-  Object.entries(pairs).forEach(([id,val])=>{ const el=document.getElementById(id); if(el&&val!==undefined) el.value=val; });
-  const tx = document.getElementById('st-tax'); if(tx) tx.value = s.taxRate||10;
-  const tgl = document.getElementById('tgl-inv');
-  if(tgl) { tgl.className='toggle'+(s.showInv?' on':''); }
-}
-
-function toggleSetting(key) {
-  if(key==='inv') {
-    D.settings.showInv = !D.settings.showInv;
-    const tgl=document.getElementById('tgl-inv');
-    if(tgl) tgl.className='toggle'+(D.settings.showInv?' on':'');
-  }
-}
-
-function saveSettings() {
-  const g = id => (document.getElementById(id)||{}).value||'';
-  D.settings = {
-    name:g('st-name'), addr:g('st-addr'), tel:g('st-tel'), co:g('st-co'),
-    bank:g('st-bank'), branch:g('st-branch'), accno:g('st-accno'), accname:g('st-accname'),
-    invno:g('st-invno'),
-    showInv: document.getElementById('tgl-inv')?.classList.contains('on') ?? true,
-    taxRate: parseFloat((document.getElementById('st-tax')||{}).value)||10,
-    tanka:   parseFloat(g('st-tanka'))||30000,
-    ntanka:  parseFloat(g('st-ntanka'))||40000,
-    ottanka: parseFloat(g('st-ottanka'))||4688
-  };
-  save();
-  alert('✓ 設定を保存しました');
-}
-
-// ── PWA / SERVICE WORKER ──────────────────────────────
-if('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js').catch(()=>{});
-}
-
-// ── INIT ──────────────────────────────────────────────
-renderAll();
-</script>
+<script src="app.js"></script>
 </body>
 </html>
