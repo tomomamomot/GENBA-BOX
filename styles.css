@@ -1,4 +1,4 @@
-﻿
+
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
   --ink:#1f2937;--sub:#5b6473;--line:#d7e0ea;--bg:#eef3f8;--card:#fff;
@@ -162,5 +162,5 @@ input[type="number"]{appearance:textfield;-moz-appearance:textfield}
 .setting-chip{display:inline-flex;align-items:center;gap:8px;border-radius:999px;background:#edf3fb;color:var(--accent);padding:8px 10px 8px 12px;font-size:13px;font-weight:900;max-width:100%}
 .setting-chip button{width:24px;height:24px;border:none;border-radius:50%;background:#fff;color:var(--red);font-size:16px;font-weight:900;line-height:1}
 .empty-inline{font-size:13px;color:var(--sub);font-weight:800;padding:4px 0}
-.save-status{margin-top:10px;text-align:center;color:var(--trip);font-size:13px;font-weight:900;min-height:20px;opacity:0;transition:opacity .18s ease}.save-status.show{opacity:1}
+.save-status{position:fixed;left:50%;bottom:calc(26px + var(--safe-bot));transform:translate(-50%,18px);z-index:500;background:#14213d;color:#fff;border-radius:14px;padding:13px 18px;box-shadow:0 16px 34px rgba(15,23,42,.24);font-size:14px;font-weight:900;opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease;white-space:nowrap}.save-status.show{opacity:1;transform:translate(-50%,0)}
 .sum-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.sum-card{min-height:82px}

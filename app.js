@@ -199,21 +199,12 @@ function renderCalendar() {
 }
 function renderSummary() {
   const selfEntries = monthEntries().filter((entry) => entry.type === 'self');
-  const yearItems = yearEntries();
-  const yearSelfEntries = yearItems.filter((entry) => entry.type === 'self');
-  const salesExTax = sumBy(selfEntries, (entry) => calcEntry(entry).subtotal);
-  const ownQty = sumBy(selfEntries, (entry) => calcEntry(entry).qty);
+  const yearSelfEntries = yearEntries().filter((entry) => entry.type === 'self');
+  const monthQty = sumBy(selfEntries, (entry) => calcEntry(entry).qty);
   const yearQty = sumBy(yearSelfEntries, (entry) => calcEntry(entry).qty);
-  const yearSales = sumBy(yearSelfEntries, (entry) => calcEntry(entry).subtotal);
-  const yearExpenses = sumBy(yearItems, (entry) => calcEntry(entry).expenses);
-  const hidden = !state.settings.showSales;
   document.getElementById('sum-grid').innerHTML = `
-    <div class="sum-card"><div class="sl">今月の自分人工</div><div class="sv green">${ownQty.toLocaleString('ja-JP')}</div></div>
-    <div class="sum-card"><div class="sl">今月の売上</div><div class="sv ${hidden ? 'hidden-amount' : ''}">${yen(salesExTax, hidden)}</div></div>
-    <div class="sum-card"><div class="sl">${cursor.getFullYear()}年の人工合計</div><div class="sv green">${yearQty.toLocaleString('ja-JP')}</div></div>
-    <div class="sum-card"><div class="sl">${cursor.getFullYear()}年の売上合計</div><div class="sv ${hidden ? 'hidden-amount' : ''}">${yen(yearSales, hidden)}</div></div>
-    <div class="sum-card"><div class="sl">${cursor.getFullYear()}年の経費合計</div><div class="sv ${hidden ? 'hidden-amount' : ''}">${yen(yearExpenses, hidden)}</div></div>
-    <div class="sum-card"><div class="sl">${cursor.getFullYear()}年の登録件数</div><div class="sv">${yearItems.length}</div></div>`;
+    <div class="sum-card"><div class="sl">今月の人工</div><div class="sv green">${monthQty.toLocaleString('ja-JP')}</div></div>
+    <div class="sum-card"><div class="sl">${cursor.getFullYear()}年の人工</div><div class="sv green">${yearQty.toLocaleString('ja-JP')}</div></div>`;
 }
 function renderDayEntries() {
   const legacy = document.getElementById('day-entries');
