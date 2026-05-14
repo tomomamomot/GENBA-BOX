@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
@@ -20,7 +20,16 @@
         <div class="topbar-title">GENBA BOX</div>
         <div class="topbar-sub" id="cal-sub"></div>
       </div>
-      <button class="ghost-btn" id="toggle-sales-btn">売上表示</button>
+      <div class="topbar-actions">
+        <button class="ghost-icon-btn" id="menu-toggle-btn" aria-label="メニュー">☰</button>
+      </div>
+    </div>
+    <div class="top-menu hidden" id="top-menu">
+      <button class="top-menu-item" data-screen-link="cal">カレンダー</button>
+      <button class="top-menu-item" data-screen-link="sub">外注</button>
+      <button class="top-menu-item" data-screen-link="inv">請求</button>
+      <button class="top-menu-item" data-screen-link="st">設定</button>
+      <button class="top-menu-item" id="toggle-sales-btn">売上表示</button>
     </div>
   </div>
   <div class="month-nav">
@@ -29,16 +38,23 @@
     <button id="next-month-btn" aria-label="次月">&#8250;</button>
   </div>
   <div class="cal-grid" id="cal-grid"></div>
+  <div id="day-entries" class="hidden"></div>
   <div class="sum-grid" id="sum-grid"></div>
-  <div class="sec-hd" id="day-hd"></div>
-  <div id="day-entries"></div>
   <button class="fab" id="fab-main" aria-label="追加">＋</button>
 </div>
 
 <div id="sc-sub" class="screen">
   <div class="topbar">
-    <div class="topbar-title">外注管理</div>
-    <div class="topbar-sub" id="sub-sub"></div>
+    <div class="topbar-row">
+      <div>
+        <div class="topbar-title">外注管理</div>
+        <div class="topbar-sub" id="sub-sub"></div>
+      </div>
+      <div class="topbar-actions">
+        <button class="ghost-icon-btn" data-menu-open aria-label="メニュー">☰</button>
+      </div>
+    </div>
+    <div class="top-menu hidden top-menu-clone"></div>
   </div>
   <div class="month-nav">
     <button id="sub-prev-month-btn">&#8249;</button>
@@ -51,8 +67,16 @@
 
 <div id="sc-inv" class="screen">
   <div class="topbar">
-    <div class="topbar-title">出面表・請求書</div>
-    <div class="topbar-sub" id="inv-sub"></div>
+    <div class="topbar-row">
+      <div>
+        <div class="topbar-title">出面表・請求書</div>
+        <div class="topbar-sub" id="inv-sub"></div>
+      </div>
+      <div class="topbar-actions">
+        <button class="ghost-icon-btn" data-menu-open aria-label="メニュー">☰</button>
+      </div>
+    </div>
+    <div class="top-menu hidden top-menu-clone"></div>
   </div>
   <div class="month-nav">
     <button id="inv-prev-month-btn">&#8249;</button>
@@ -66,7 +90,15 @@
 
 <div id="sc-st" class="screen">
   <div class="topbar">
-    <div class="topbar-title">設定</div>
+    <div class="topbar-row">
+      <div>
+        <div class="topbar-title">設定</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="ghost-icon-btn" data-menu-open aria-label="メニュー">☰</button>
+      </div>
+    </div>
+    <div class="top-menu hidden top-menu-clone"></div>
   </div>
 
   <div class="sec-hd">登録会社</div>
@@ -120,15 +152,24 @@
   </div>
 </div>
 
-<nav class="nav">
+<nav class="nav hidden">
   <button class="nav-item active" data-screen="cal">カレンダー</button>
   <button class="nav-item" data-screen="sub">外注</button>
   <button class="nav-item" data-screen="inv">請求</button>
   <button class="nav-item" data-screen="st">設定</button>
 </nav>
 
+<div class="day-modal-bg" id="day-modal-bg">
+  <div class="day-modal">
+    <div class="day-modal-head">
+      <div class="day-modal-title" id="day-modal-title">予定</div>
+      <button class="day-modal-close" type="button" data-close-day-modal aria-label="閉じる">×</button>
+    </div>
+    <div class="day-modal-body" id="day-modal-body"></div>
+  </div>
+</div>
 <div class="modal-bg" id="modal-bg">
-  <div class="modal">
+  <div class="modal" id="entry-modal">
     <div class="modal-handle"></div>
     <div class="modal-title" id="modal-title">予定を追加</div>
     <div class="modal-body" id="modal-body"></div>

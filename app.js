@@ -1,4 +1,4 @@
-﻿
+
 const STORE_KEY = 'genba-box-v2';
 const OLD_STORE_KEY = 'shokunin3';
 const DEFAULT_EXPENSE_ITEMS = ['交通費', '駐車場代', '宿泊費', 'ガソリン代', '資材代', 'その他'];
@@ -17,6 +17,8 @@ let selectedDate = toYmd(new Date());
 let selectedCompany = '';
 let activeScreen = 'cal';
 let editingId = null;
+let modalTouch = { startY: 0, currentY: 0, dragging: false };
+let isDayModalOpen = false;
 
 function loadState() {
   try {
@@ -106,10 +108,24 @@ function companyEventTitle(entry) { return [entry.company, entry.site].filter(Bo
 
 function renderAll() { renderNav(); renderHeaders(); renderCalendar(); renderDayEntries(); renderSubScreen(); renderInvoiceScreen(); renderSettings(); }
 function renderNav() {
+  if (activeScreen !== 'cal') isDayModalOpen = false;
   document.querySelectorAll('.screen').forEach((el) => el.classList.remove('active', 'print-active'));
   document.getElementById(`sc-${activeScreen}`)?.classList.add('active');
   document.querySelectorAll('.nav-item').forEach((el) => el.classList.toggle('active', el.dataset.screen === activeScreen));
-  document.getElementById('toggle-sales-btn').textContent = state.settings.showSales ? '売上非表示' : '売上表示';
+  const toggle = document.getElementById('toggle-sales-btn');
+  if (toggle) toggle.textContent = state.settings.showSales ? '売上を隠す' : '売上を表示';
+  syncMenuClones();
+  document.querySelectorAll('.top-menu').forEach((menu) => menu.classList.add('hidden'));
+}
+
+function syncMenuClones() {
+  const template = `
+    <button class="top-menu-item" data-screen-link="cal">カレンダー</button>
+    <button class="top-menu-item" data-screen-link="sub">外注</button>
+    <button class="top-menu-item" data-screen-link="inv">請求</button>
+    <button class="top-menu-item" data-screen-link="st">設定</button>
+    <button class="top-menu-item" data-sales-toggle>${state.settings.showSales ? '売上を隠す' : '売上を表示'}</button>`;
+  document.querySelectorAll('.top-menu-clone').forEach((menu) => { menu.innerHTML = template; });
 }
 function renderHeaders() {
   const monthText = fmtMonth(cursor);
@@ -153,17 +169,37 @@ function renderSummary() {
     <div class="sum-card"><div class="sl">粗利見込</div><div class="sv green ${hidden ? 'hidden-amount' : ''}">${yen(gross, hidden)}</div></div>`;
 }
 function renderDayEntries() {
-  const title = document.getElementById('day-hd');
-  const body = document.getElementById('day-entries');
-  title.textContent = `${fmtDateJP(selectedDate)}（${weekdayLabel(selectedDate)}）の予定`;
+  const legacy = document.getElementById('day-entries');
+  if (legacy) legacy.innerHTML = '';
+  const modal = document.getElementById('day-modal-bg');
+  const title = document.getElementById('day-modal-title');
+  const body = document.getElementById('day-modal-body');
+  if (!modal || !title || !body) return;
   const entries = dayEntries(selectedDate);
-  if (!entries.length) { body.innerHTML = `<div class="empty"><div class="icon">📅</div><div>この日の予定はまだありません</div><p>日付をタップして予定を追加できます。</p></div>`; return; }
   const hidden = !state.settings.showSales;
-  body.innerHTML = entries.map((entry) => {
-    const calc = calcEntry(entry), shift = shiftClass(entry.shift);
-    const expenseTags = expenseItems().filter((item) => num(entry.expenses?.[item.id]) > 0).map((item) => `<span class="etag">${escapeHtml(item.label)} ${yen(entry.expenses[item.id], hidden)}</span>`).join('');
-    return `<div class="ecard"><div class="ecard-hd"><div><div class="ecard-site">${escapeHtml(entry.site || '現場名未入力')}</div><div class="ecard-co">${escapeHtml(entry.company || '会社名未入力')} ・ ${entry.type === 'sub' ? escapeHtml(entry.workerName || '外注職人') : '自分'}</div></div><div><div class="ecard-amt ${hidden ? 'hidden-amount' : ''}">${yen(calc.subtotal, hidden)}</div><div class="ecard-ninku">${shiftLabel(entry.shift)} / ${calc.qty}人工</div></div></div><div class="ecard-foot"><span class="pill ${shift}">${shiftLabel(entry.shift)}</span><span class="pill ${entry.type === 'sub' ? 'sub' : ''}">${typeLabel(entry.type)}</span><span class="etag">単価 ${yen(calc.unitRate, hidden)}</span>${calc.otHours ? `<span class="etag">残業 ${calc.otHours}h</span>` : ''}${expenseTags}</div><div class="ecard-actions"><button class="ecard-btn" data-edit-entry="${entry.id}">編集</button><button class="ecard-btn" data-sync-entry="${entry.id}">Google同期</button><button class="ecard-btn del" data-del-entry="${entry.id}">削除</button></div></div>`;
-  }).join('');
+  title.textContent = `${fmtDateJP(selectedDate)}（${weekdayLabel(selectedDate)}）`;
+  if (!entries.length) {
+    body.innerHTML = `<div class="day-mini-empty"><div class="empty" style="padding:22px 10px 8px"><div>この日の予定はありません</div><p>追加ボタンから登録できます。</p></div><button class="btn-primary" type="button" data-add-date="${selectedDate}">予定を追加</button></div>`;
+    modal.classList.toggle('open', activeScreen === 'cal' && isDayModalOpen);
+    return;
+  }
+  body.innerHTML = `<div class="day-mini-list">${entries.map((entry) => {
+    const calc = calcEntry(entry);
+    return `<div class="day-mini-card"><div class="day-mini-row"><div><div class="day-mini-title">${escapeHtml(entry.company || '会社名未入力')}</div><div class="day-mini-sub">${escapeHtml(entry.site || '現場名未入力')} ・ ${entry.type === 'sub' ? escapeHtml(entry.workerName || '外注職人') : '自分'} ・ ${shiftLabel(entry.shift)}</div></div><div class="pill ${shiftClass(entry.shift)}">${shiftLabel(entry.shift)}</div></div><div class="day-mini-sub" style="margin-top:8px">${calc.qty}人工 / ${yen(calc.subtotal, hidden)}</div><div class="day-mini-actions"><button class="day-mini-btn" type="button" data-edit-entry="${entry.id}">編集</button><button class="day-mini-btn" type="button" data-sync-entry="${entry.id}">同期</button><button class="day-mini-btn del" type="button" data-del-entry="${entry.id}">削除</button></div></div>`;
+  }).join('')}<button class="btn-primary" type="button" data-add-date="${selectedDate}">予定を追加</button></div>`;
+  modal.classList.toggle('open', activeScreen === 'cal' && isDayModalOpen);
+}
+
+function openDayModal(date) {
+  selectedDate = date;
+  if (monthKey(selectedDate) !== monthKey(cursor)) cursor = startOfMonth(fromYmd(selectedDate));
+  isDayModalOpen = true;
+  renderAll();
+}
+
+function closeDayModal() {
+  isDayModalOpen = false;
+  document.getElementById('day-modal-bg')?.classList.remove('open');
 }
 function renderSubScreen() {
   const body = document.getElementById('sub-body');
@@ -216,13 +252,19 @@ function openModal(type, id = null) {
   if (!entry) return;
   const isSub = entry.type === 'sub' || type === 'sub';
   const companyChoices = companyOptions();
-  const companyChips = state.settings.companies.slice(0, 8).map((name) => `<button class="pick-chip" type="button" data-pick-company="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join('');
+  const companyTabs = state.settings.companies.slice(0, 8).map((name) => `<button class="company-tab ${name === entry.company ? 'active' : ''}" type="button" data-pick-company="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join('');
   const expenseFields = expenseItems().map((item) => `<div class="field"><label>${escapeHtml(item.label)}</label><input type="number" min="0" step="1" data-expense-id="${item.id}" value="${num(entry.expenses?.[item.id])}"></div>`).join('');
   document.getElementById('modal-title').textContent = id ? '予定を編集' : '予定を追加';
-  document.getElementById('modal-body').innerHTML = `<div class="type-sel"><button class="type-btn ${entry.type === 'self' ? 'active' : ''}" data-entry-type="self" type="button">自分</button><button class="type-btn ${entry.type === 'sub' ? 'active' : ''}" data-entry-type="sub" type="button">外注職人</button><button class="type-btn ${entry.shift === 'night' ? 'active' : ''}" data-quick-shift="night" type="button">夜勤</button></div><form id="entry-form"><div class="field"><label>日付</label><input id="f-date" type="date" value="${escapeHtml(entry.date)}"></div>${isSub ? `<div class="field" id="worker-wrap"><label>職人名</label><input id="f-worker" value="${escapeHtml(entry.workerName)}" placeholder="佐藤大工"></div>` : `<div class="field hidden" id="worker-wrap"><label>職人名</label><input id="f-worker" value="${escapeHtml(entry.workerName)}"></div>`}<div class="field"><label>会社名</label><input id="f-company" list="company-list" value="${escapeHtml(entry.company)}" placeholder="株式会社○○"><datalist id="company-list">${companyChoices.map((name) => `<option value="${escapeHtml(name)}">`).join('')}</datalist><div class="company-picks">${companyChips}</div></div><div class="field"><label>現場名</label><input id="f-site" value="${escapeHtml(entry.site)}" placeholder="新宿現場"></div><div class="field-r2"><div class="field"><label>勤務区分</label><select id="f-shift"><option value="day" ${entry.shift === 'day' ? 'selected' : ''}>日勤</option><option value="night" ${entry.shift === 'night' ? 'selected' : ''}>夜勤</option><option value="trip" ${entry.shift === 'trip' ? 'selected' : ''}>出張</option></select></div><div class="field"><label>人工</label><input id="f-qty" type="number" min="0" step="0.5" value="${entry.qty}"></div></div><div class="field-r3"><div class="field"><label>単価</label><input id="f-rate" type="number" min="0" step="1" value="${entry.unitRate}"></div><div class="field"><label>残業時間</label><input id="f-ot-hours" type="number" min="0" step="0.5" value="${entry.otHours}"></div><div class="field"><label>残業単価</label><input id="f-ot-rate" type="number" min="0" step="1" value="${entry.otRate}"></div></div><div class="sec-hd" style="padding:0 0 8px">経費</div><div class="field-r2">${expenseFields}</div><div class="field"><label>メモ</label><textarea id="f-notes" placeholder="注意点やメモ">${escapeHtml(entry.notes)}</textarea></div><div class="btn-row"><button class="btn-secondary" type="button" id="cancel-entry-btn">キャンセル</button><button class="btn-primary" type="submit">保存</button></div></form>`;
+  document.getElementById('modal-body').innerHTML = `<div class="type-sel"><button class="type-btn ${entry.type === 'self' ? 'active' : ''}" data-entry-type="self" type="button">自分</button><button class="type-btn ${entry.type === 'sub' ? 'active' : ''}" data-entry-type="sub" type="button">外注職人</button></div><form id="entry-form"><div class="field"><label>日付</label><input id="f-date" type="date" value="${escapeHtml(entry.date)}"></div>${isSub ? `<div class="field" id="worker-wrap"><label>職人名</label><input id="f-worker" value="${escapeHtml(entry.workerName)}" placeholder="佐藤大工"></div>` : `<div class="field hidden" id="worker-wrap"><label>職人名</label><input id="f-worker" value="${escapeHtml(entry.workerName)}"></div>`}<div class="field"><label>会社名</label><input id="f-company" list="company-list" value="${escapeHtml(entry.company)}" placeholder="株式会社○○"><datalist id="company-list">${companyChoices.map((name) => `<option value="${escapeHtml(name)}">`).join('')}</datalist><div class="company-tabs">${companyTabs}</div></div><div class="field"><label>現場名</label><input id="f-site" value="${escapeHtml(entry.site)}" placeholder="新宿現場"></div><div class="field-r2"><div class="field"><label>勤務区分</label><select id="f-shift"><option value="day" ${entry.shift === 'day' ? 'selected' : ''}>日勤</option><option value="night" ${entry.shift === 'night' ? 'selected' : ''}>夜勤</option><option value="trip" ${entry.shift === 'trip' ? 'selected' : ''}>出張</option></select></div><div class="field"><label>人工</label><input id="f-qty" type="number" min="0" step="0.5" value="${entry.qty}"></div></div><div class="field-r3"><div class="field"><label>単価</label><input id="f-rate" type="number" min="0" step="1" value="${entry.unitRate}"></div><div class="field"><label>残業時間</label><input id="f-ot-hours" type="number" min="0" step="0.5" value="${entry.otHours}"></div><div class="field"><label>残業単価</label><input id="f-ot-rate" type="number" min="0" step="1" value="${entry.otRate}"></div></div><div class="sec-hd" style="padding:0 0 8px">経費</div><div class="field-r2">${expenseFields}</div><div class="field"><label>メモ</label><textarea id="f-notes" placeholder="注意点やメモ">${escapeHtml(entry.notes)}</textarea></div><div class="btn-row"><button class="btn-secondary" type="button" id="cancel-entry-btn">キャンセル</button><button class="btn-primary" type="submit">保存</button></div></form>`;
   document.getElementById('modal-bg').classList.add('open');
 }
-function closeModal() { document.getElementById('modal-bg').classList.remove('open'); editingId = null; }
+function closeModal() {
+  const modal = document.getElementById('entry-modal');
+  modal.classList.remove('dragging');
+  modal.style.transform = '';
+  document.getElementById('modal-bg').classList.remove('open');
+  editingId = null;
+}
 function collectEntryForm() {
   const type = document.querySelector('[data-entry-type].active')?.dataset.entryType || 'self';
   const entry = {
@@ -294,24 +336,38 @@ function printView(kind) {
 }
 function bindEvents() {
   document.querySelectorAll('.nav-item').forEach((button) => button.addEventListener('click', () => { activeScreen = button.dataset.screen; renderAll(); }));
-  document.getElementById('toggle-sales-btn').addEventListener('click', () => { state.settings.showSales = !state.settings.showSales; saveState(); renderAll(); });
+  const salesToggle = document.getElementById('toggle-sales-btn');
+  if (salesToggle) salesToggle.addEventListener('click', () => { state.settings.showSales = !state.settings.showSales; saveState(); renderAll(); });
   ['prev-month-btn', 'sub-prev-month-btn', 'inv-prev-month-btn'].forEach((id) => document.getElementById(id).addEventListener('click', () => { cursor = new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1); if (monthKey(selectedDate) !== monthKey(cursor)) selectedDate = toYmd(cursor); renderAll(); }));
   ['next-month-btn', 'sub-next-month-btn', 'inv-next-month-btn'].forEach((id) => document.getElementById(id).addEventListener('click', () => { cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1); if (monthKey(selectedDate) !== monthKey(cursor)) selectedDate = toYmd(cursor); renderAll(); }));
-  document.getElementById('fab-main').addEventListener('click', () => openModal('self'));
-  document.getElementById('fab-sub').addEventListener('click', () => openModal('sub'));
+  document.getElementById('fab-main').addEventListener('click', () => { closeDayModal(); openModal('self'); });
+  document.getElementById('fab-sub').addEventListener('click', () => { closeDayModal(); openModal('sub'); });
   document.getElementById('save-settings-btn').addEventListener('click', saveSettings);
   document.getElementById('tgl-inv').addEventListener('click', () => { document.getElementById('tgl-inv').classList.toggle('on'); document.getElementById('inv-no-row').classList.toggle('hidden', !document.getElementById('tgl-inv').classList.contains('on')); });
   document.getElementById('modal-bg').addEventListener('click', (event) => { if (event.target.id === 'modal-bg') closeModal(); });
+  initModalGesture();
 
   document.addEventListener('click', (event) => {
+    const menuButton = event.target.closest('#menu-toggle-btn,[data-menu-open]');
+    if (menuButton) {
+      const menu = menuButton.closest('.topbar').querySelector('.top-menu');
+      menu.classList.toggle('hidden');
+      return;
+    }
+    const screenLink = event.target.closest('[data-screen-link]');
+    if (screenLink) { activeScreen = screenLink.dataset.screenLink; if (activeScreen !== 'cal') closeDayModal(); renderAll(); return; }
+    const otherSales = event.target.closest('[data-sales-toggle]');
+    if (otherSales) { state.settings.showSales = !state.settings.showSales; saveState(); renderAll(); return; }
     const dayButton = event.target.closest('.cal-day');
-    if (dayButton) { selectedDate = dayButton.dataset.date; if (monthKey(selectedDate) !== monthKey(cursor)) cursor = startOfMonth(fromYmd(selectedDate)); renderAll(); openModal('self'); return; }
-    const editButton = event.target.closest('[data-edit-entry]'); if (editButton) { openModal('self', editButton.dataset.editEntry); return; }
+    if (dayButton) { openDayModal(dayButton.dataset.date); return; }
+    const addDate = event.target.closest('[data-add-date]');
+    if (addDate) { selectedDate = addDate.dataset.addDate; closeDayModal(); openModal('self'); return; }
+    const editButton = event.target.closest('[data-edit-entry]'); if (editButton) { closeDayModal(); openModal('self', editButton.dataset.editEntry); return; }
     const delButton = event.target.closest('[data-del-entry]'); if (delButton) { if (confirm('この予定を削除しますか？')) deleteEntry(delButton.dataset.delEntry); return; }
     const syncButton = event.target.closest('[data-sync-entry]'); if (syncButton) { gcalEntry(syncButton.dataset.syncEntry); return; }
     const companyChip = event.target.closest('[data-company]'); if (companyChip) { selectedCompany = companyChip.dataset.company; renderInvoiceScreen(); return; }
     const modeButton = event.target.closest('[data-invoice-mode]'); if (modeButton) { setCompanyInvoiceMode(selectedCompany, modeButton.dataset.invoiceMode); renderInvoiceScreen(); return; }
-    const pickCompany = event.target.closest('[data-pick-company]'); if (pickCompany) { const input = document.getElementById('f-company'); if (input) input.value = pickCompany.dataset.pickCompany; return; }
+    const pickCompany = event.target.closest('[data-pick-company]'); if (pickCompany) { const input = document.getElementById('f-company'); if (input) input.value = pickCompany.dataset.pickCompany; document.querySelectorAll('.company-tab').forEach((button) => button.classList.toggle('active', button === pickCompany)); return; }
     if (event.target.matches('#cancel-entry-btn')) { closeModal(); return; }
     if (event.target.matches('[data-export-demen]')) exportDemenCsv();
     if (event.target.matches('[data-export-invoice]')) exportInvoiceCsv();
@@ -321,8 +377,8 @@ function bindEvents() {
       document.querySelectorAll('[data-entry-type]').forEach((button) => button.classList.remove('active')); event.target.classList.add('active');
       document.getElementById('worker-wrap').classList.toggle('hidden', event.target.dataset.entryType !== 'sub'); return;
     }
-    if (event.target.matches('[data-quick-shift="night"]')) {
-      document.getElementById('f-shift').value = 'night'; const rate = document.getElementById('f-rate'); if (rate) rate.value = state.settings.defaultNightRate; return;
+    if (!event.target.closest('.top-menu') && !event.target.closest('.ghost-icon-btn')) {
+      document.querySelectorAll('.top-menu').forEach((menu) => menu.classList.add('hidden'));
     }
   });
 
@@ -339,7 +395,34 @@ function bindEvents() {
     try { const entry = collectEntryForm(); upsertEntry(entry); closeModal(); } catch (error) { alert(error.message || '保存に失敗しました'); }
   });
 }
+
+function initModalGesture() {
+  const modal = document.getElementById('entry-modal');
+  const handleStart = (y) => { modalTouch.startY = y; modalTouch.currentY = y; modalTouch.dragging = true; modal.classList.add('dragging'); };
+  const handleMove = (y) => {
+    if (!modalTouch.dragging) return;
+    modalTouch.currentY = y;
+    const diff = Math.max(0, y - modalTouch.startY);
+    modal.style.transform = `translateY(${diff}px)`;
+  };
+  const handleEnd = () => {
+    if (!modalTouch.dragging) return;
+    const diff = modalTouch.currentY - modalTouch.startY;
+    modalTouch.dragging = false;
+    modal.classList.remove('dragging');
+    if (diff > 120) {
+      closeModal();
+    } else {
+      modal.style.transform = '';
+    }
+  };
+  modal.addEventListener('touchstart', (event) => handleStart(event.touches[0].clientY), { passive: true });
+  modal.addEventListener('touchmove', (event) => handleMove(event.touches[0].clientY), { passive: true });
+  modal.addEventListener('touchend', handleEnd);
+  modal.addEventListener('pointerdown', (event) => { if (event.pointerType !== 'mouse') handleStart(event.clientY); });
+  modal.addEventListener('pointermove', (event) => { if (modalTouch.dragging && event.pointerType !== 'mouse') handleMove(event.clientY); });
+  modal.addEventListener('pointerup', handleEnd);
+}
 function registerPwa() { if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch((error) => console.warn('sw failed', error)); }
 function init() { bindEvents(); renderAll(); registerPwa(); }
 document.addEventListener('DOMContentLoaded', init);
-
