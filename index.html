@@ -28,6 +28,8 @@
       <button class="top-menu-item" data-screen-link="cal">カレンダー</button>
       <button class="top-menu-item" data-screen-link="sub">外注</button>
       <button class="top-menu-item" data-screen-link="inv">請求</button>
+      <button class="top-menu-item" data-screen-link="sync">Google同期</button>
+      <button class="top-menu-item" data-screen-link="receipt">領収書</button>
       <button class="top-menu-item" data-screen-link="st">設定</button>
       <button class="top-menu-item" id="toggle-sales-btn">売上表示</button>
     </div>
@@ -104,16 +106,20 @@
   <div class="sec-hd">登録会社</div>
   <div class="st-section wide-section">
     <div class="field pad-field">
-      <label>会社名を1行ずつ登録</label>
-      <textarea id="st-companies" placeholder="株式会社○○&#10;有限会社△△"></textarea>
+      <label>会社名</label>
+      <div class="inline-add"><input id="st-company-new" class="st-input" placeholder="会社名を入力"><button class="mini-add-btn" type="button" id="add-company-btn">追加</button></div>
+      <div class="setting-chip-list" id="st-company-list"></div>
+      <textarea id="st-companies" class="hidden"></textarea>
     </div>
   </div>
 
   <div class="sec-hd">経費項目</div>
   <div class="st-section wide-section">
     <div class="field pad-field">
-      <label>経費項目を1行ずつ設定</label>
-      <textarea id="st-expenses" placeholder="交通費&#10;駐車場代&#10;宿泊費"></textarea>
+      <label>経費項目</label>
+      <div class="inline-add"><input id="st-expense-new" class="st-input" placeholder="項目名を入力"><button class="mini-add-btn" type="button" id="add-expense-btn">追加</button></div>
+      <div class="setting-chip-list" id="st-expense-list"></div>
+      <textarea id="st-expenses" class="hidden"></textarea>
     </div>
   </div>
 
@@ -133,6 +139,11 @@
     <div class="st-row"><span class="st-label">口座名義</span><input class="st-input" id="st-accname" placeholder="カ）○○"></div>
   </div>
 
+  <div class="sec-hd">表示設定</div>
+  <div class="st-section">
+    <div class="st-row"><span class="st-label">外注機能</span><button class="toggle on" id="tgl-subcontract" type="button"></button></div>
+  </div>
+
   <div class="sec-hd">請求設定</div>
   <div class="st-section">
     <div class="st-row"><span class="st-label">インボイス表示</span><button class="toggle on" id="tgl-inv"></button></div>
@@ -142,20 +153,80 @@
 
   <div class="sec-hd">単価設定</div>
   <div class="st-section">
-    <div class="st-row"><span class="st-label">日勤単価</span><input class="st-input" id="st-tanka" type="number" placeholder="30000"></div>
-    <div class="st-row"><span class="st-label">夜勤単価</span><input class="st-input" id="st-ntanka" type="number" placeholder="40000"></div>
-    <div class="st-row"><span class="st-label">残業単価</span><input class="st-input" id="st-ottanka" type="number" placeholder="4688"></div>
+    <div class="st-row"><span class="st-label">日勤単価</span><input class="st-input" id="st-tanka" type="number" placeholder="空欄"></div>
+    <div class="st-row"><span class="st-label">夜勤単価</span><input class="st-input" id="st-ntanka" type="number" placeholder="空欄"></div>
+    <div class="st-row"><span class="st-label">残業単価</span><input class="st-input" id="st-ottanka" type="number" placeholder="空欄"></div>
   </div>
 
   <div class="save-wrap">
     <button class="btn-primary" id="save-settings-btn">設定を保存</button>
+    <div class="save-status" id="save-status" aria-live="polite"></div>
   </div>
+</div>
+
+
+
+<div id="sc-sync" class="screen">
+  <div class="topbar">
+    <div class="topbar-row">
+      <div>
+        <div class="topbar-title">Google同期</div>
+        <div class="topbar-sub" id="sync-sub">未接続</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="ghost-icon-btn" data-menu-open aria-label="メニュー">&#9776;</button>
+      </div>
+    </div>
+    <div class="top-menu hidden top-menu-clone"></div>
+  </div>
+  <div class="sync-panel">
+    <div class="status-card">
+      <div>
+        <div class="status-label">Googleアカウント</div>
+        <div class="status-value" id="google-account-status">未接続</div>
+      </div>
+      <span class="status-dot off" id="google-status-dot"></span>
+    </div>
+    <div class="st-section">
+      <div class="st-row"><span class="st-label">Client ID</span><input class="st-input" id="google-client-id" placeholder="OAuth Client ID"></div>
+      <div class="st-row"><span class="st-label">Calendar</span><input class="st-input" id="google-calendar-id" placeholder="primary"></div>
+      <div class="st-row"><span class="st-label">保存先</span><select class="st-select" id="google-store-mode"><option value="local">この端末</option><option value="drive">Google Drive</option></select></div>
+    </div>
+    <div class="sync-actions">
+      <button class="btn-primary" type="button" id="save-google-settings-btn">Google設定を保存</button>
+      <button class="btn-secondary" type="button" id="google-connect-btn">Googleで接続</button>
+      <button class="btn-secondary" type="button" id="google-sync-now-btn">同期</button>
+    </div>
+    <div class="sync-log" id="sync-log"></div>
+  </div>
+</div>
+
+<div id="sc-receipt" class="screen">
+  <div class="topbar">
+    <div class="topbar-row">
+      <div>
+        <div class="topbar-title">領収書</div>
+        <div class="topbar-sub" id="receipt-sub">自動仕分け</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="ghost-icon-btn" data-menu-open aria-label="メニュー">&#9776;</button>
+      </div>
+    </div>
+    <div class="top-menu hidden top-menu-clone"></div>
+  </div>
+  <div class="receipt-import">
+    <input id="receipt-file" type="file" accept="image/*,.pdf" multiple hidden>
+    <button class="btn-primary" type="button" id="receipt-pick-btn">領収書を読み込み</button>
+  </div>
+  <div id="receipt-body"></div>
 </div>
 
 <nav class="nav hidden">
   <button class="nav-item active" data-screen="cal">カレンダー</button>
   <button class="nav-item" data-screen="sub">外注</button>
   <button class="nav-item" data-screen="inv">請求</button>
+  <button class="nav-item" data-screen="sync">Google同期</button>
+  <button class="nav-item" data-screen="receipt">領収書</button>
   <button class="nav-item" data-screen="st">設定</button>
 </nav>
 
