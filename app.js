@@ -159,14 +159,10 @@ function renderSummary() {
   const selfEntries = items.filter((entry) => entry.type === 'self');
   const salesExTax = selfEntries.reduce((sum, entry) => sum + calcEntry(entry).subtotal, 0);
   const expenseTotal = items.reduce((sum, entry) => sum + calcEntry(entry).expenses, 0);
-  const subPay = items.filter((entry) => entry.type === 'sub').reduce((sum, entry) => sum + calcEntry(entry).subtotal, 0);
-  const gross = salesExTax - subPay;
   const hidden = !state.settings.showSales;
   document.getElementById('sum-grid').innerHTML = `
     <div class="sum-card"><div class="sl">今月の売上（税別）</div><div class="sv ${hidden ? 'hidden-amount' : ''}">${yen(salesExTax, hidden)}</div></div>
-    <div class="sum-card"><div class="sl">経費合計</div><div class="sv ${hidden ? 'hidden-amount' : ''}">${yen(expenseTotal, hidden)}</div></div>
-    <div class="sum-card"><div class="sl">外注支払見込</div><div class="sv ${hidden ? 'hidden-amount' : ''}">${yen(subPay, hidden)}</div></div>
-    <div class="sum-card"><div class="sl">粗利見込</div><div class="sv green ${hidden ? 'hidden-amount' : ''}">${yen(gross, hidden)}</div></div>`;
+    <div class="sum-card"><div class="sl">経費合計</div><div class="sv ${hidden ? 'hidden-amount' : ''}">${yen(expenseTotal, hidden)}</div></div>`;
 }
 function renderDayEntries() {
   const legacy = document.getElementById('day-entries');
@@ -251,11 +247,9 @@ function openModal(type, id = null) {
   const entry = id ? state.entries.find((item) => item.id === id) : createDefaultEntry(type, selectedDate);
   if (!entry) return;
   const isSub = entry.type === 'sub' || type === 'sub';
-  const companyChoices = companyOptions();
-  const companyTabs = state.settings.companies.slice(0, 8).map((name) => `<button class="company-tab ${name === entry.company ? 'active' : ''}" type="button" data-pick-company="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join('');
   const expenseFields = expenseItems().map((item) => `<div class="field"><label>${escapeHtml(item.label)}</label><input type="number" min="0" step="1" data-expense-id="${item.id}" value="${num(entry.expenses?.[item.id])}"></div>`).join('');
   document.getElementById('modal-title').textContent = id ? '予定を編集' : '予定を追加';
-  document.getElementById('modal-body').innerHTML = `<div class="type-sel"><button class="type-btn ${entry.type === 'self' ? 'active' : ''}" data-entry-type="self" type="button">自分</button><button class="type-btn ${entry.type === 'sub' ? 'active' : ''}" data-entry-type="sub" type="button">外注職人</button></div><form id="entry-form"><div class="field"><label>日付</label><input id="f-date" type="date" value="${escapeHtml(entry.date)}"></div>${isSub ? `<div class="field" id="worker-wrap"><label>職人名</label><input id="f-worker" value="${escapeHtml(entry.workerName)}" placeholder="佐藤大工"></div>` : `<div class="field hidden" id="worker-wrap"><label>職人名</label><input id="f-worker" value="${escapeHtml(entry.workerName)}"></div>`}<div class="field"><label>会社名</label><input id="f-company" list="company-list" value="${escapeHtml(entry.company)}" placeholder="株式会社○○"><datalist id="company-list">${companyChoices.map((name) => `<option value="${escapeHtml(name)}">`).join('')}</datalist><div class="company-tabs">${companyTabs}</div></div><div class="field"><label>現場名</label><input id="f-site" value="${escapeHtml(entry.site)}" placeholder="新宿現場"></div><div class="field-r2"><div class="field"><label>勤務区分</label><select id="f-shift"><option value="day" ${entry.shift === 'day' ? 'selected' : ''}>日勤</option><option value="night" ${entry.shift === 'night' ? 'selected' : ''}>夜勤</option><option value="trip" ${entry.shift === 'trip' ? 'selected' : ''}>出張</option></select></div><div class="field"><label>人工</label><input id="f-qty" type="number" min="0" step="0.5" value="${entry.qty}"></div></div><div class="field-r3"><div class="field"><label>単価</label><input id="f-rate" type="number" min="0" step="1" value="${entry.unitRate}"></div><div class="field"><label>残業時間</label><input id="f-ot-hours" type="number" min="0" step="0.5" value="${entry.otHours}"></div><div class="field"><label>残業単価</label><input id="f-ot-rate" type="number" min="0" step="1" value="${entry.otRate}"></div></div><div class="sec-hd" style="padding:0 0 8px">経費</div><div class="field-r2">${expenseFields}</div><div class="field"><label>メモ</label><textarea id="f-notes" placeholder="注意点やメモ">${escapeHtml(entry.notes)}</textarea></div><div class="btn-row"><button class="btn-secondary" type="button" id="cancel-entry-btn">キャンセル</button><button class="btn-primary" type="submit">保存</button></div></form>`;
+  document.getElementById('modal-body').innerHTML = `<div class="type-sel"><button class="type-btn ${entry.type === 'self' ? 'active' : ''}" data-entry-type="self" type="button">自分</button><button class="type-btn ${entry.type === 'sub' ? 'active' : ''}" data-entry-type="sub" type="button">外注職人</button></div><form id="entry-form"><div class="field"><label>日付</label><input id="f-date" type="date" value="${escapeHtml(entry.date)}"></div>${isSub ? `<div class="field" id="worker-wrap"><label>職人名</label><input id="f-worker" value="${escapeHtml(entry.workerName)}" placeholder="佐藤大工"></div>` : `<div class="field hidden" id="worker-wrap"><label>職人名</label><input id="f-worker" value="${escapeHtml(entry.workerName)}"></div>`}<div class="field"><label>会社名</label><input id="f-company" value="${escapeHtml(entry.company)}" placeholder="株式会社○○"></div><div class="field"><label>現場名</label><input id="f-site" value="${escapeHtml(entry.site)}" placeholder="新宿現場"></div><div class="field-r2"><div class="field"><label>勤務区分</label><select id="f-shift"><option value="day" ${entry.shift === 'day' ? 'selected' : ''}>日勤</option><option value="night" ${entry.shift === 'night' ? 'selected' : ''}>夜勤</option><option value="trip" ${entry.shift === 'trip' ? 'selected' : ''}>出張</option></select></div><div class="field"><label>人工</label><input id="f-qty" type="number" min="0" step="0.5" value="${entry.qty}"></div></div><div class="field-r3"><div class="field"><label>単価</label><input id="f-rate" type="number" min="0" step="1" value="${entry.unitRate}"></div><div class="field"><label>残業時間</label><input id="f-ot-hours" type="number" min="0" step="0.5" value="${entry.otHours}"></div><div class="field"><label>残業単価</label><input id="f-ot-rate" type="number" min="0" step="1" value="${entry.otRate}"></div></div><div class="sec-hd" style="padding:0 0 8px">経費</div><div class="field-r2">${expenseFields}</div><div class="field"><label>メモ</label><textarea id="f-notes" placeholder="注意点やメモ">${escapeHtml(entry.notes)}</textarea></div><div class="btn-row"><button class="btn-secondary" type="button" id="cancel-entry-btn">キャンセル</button><button class="btn-primary" type="submit">保存</button></div></form>`;
   document.getElementById('modal-bg').classList.add('open');
 }
 function closeModal() {
@@ -348,6 +342,8 @@ function bindEvents() {
   initModalGesture();
 
   document.addEventListener('click', (event) => {
+    const closeDayButton = event.target.closest('[data-close-day-modal]');
+    if (closeDayButton || event.target.id === 'day-modal-bg') { closeDayModal(); return; }
     const menuButton = event.target.closest('#menu-toggle-btn,[data-menu-open]');
     if (menuButton) {
       const menu = menuButton.closest('.topbar').querySelector('.top-menu');
@@ -367,7 +363,6 @@ function bindEvents() {
     const syncButton = event.target.closest('[data-sync-entry]'); if (syncButton) { gcalEntry(syncButton.dataset.syncEntry); return; }
     const companyChip = event.target.closest('[data-company]'); if (companyChip) { selectedCompany = companyChip.dataset.company; renderInvoiceScreen(); return; }
     const modeButton = event.target.closest('[data-invoice-mode]'); if (modeButton) { setCompanyInvoiceMode(selectedCompany, modeButton.dataset.invoiceMode); renderInvoiceScreen(); return; }
-    const pickCompany = event.target.closest('[data-pick-company]'); if (pickCompany) { const input = document.getElementById('f-company'); if (input) input.value = pickCompany.dataset.pickCompany; document.querySelectorAll('.company-tab').forEach((button) => button.classList.toggle('active', button === pickCompany)); return; }
     if (event.target.matches('#cancel-entry-btn')) { closeModal(); return; }
     if (event.target.matches('[data-export-demen]')) exportDemenCsv();
     if (event.target.matches('[data-export-invoice]')) exportInvoiceCsv();

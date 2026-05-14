@@ -72,6 +72,9 @@ button{cursor:pointer}
 .field{margin-bottom:15px}
 .field label{display:block;margin-bottom:6px;font-size:13px;color:var(--sub);font-weight:800}
 .field input,.field select,.field textarea,.st-input,.st-select{width:100%;border:1px solid var(--line);border-radius:13px;padding:13px 14px;background:#fff;color:var(--ink)}
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button{appearance:none;-webkit-appearance:none;margin:0}
+input[type="number"]{appearance:textfield;-moz-appearance:textfield}
 .field textarea,#st-companies,#st-expenses{min-height:96px;resize:vertical}
 .field-r2,.field-r3,.btn-row{display:grid;gap:10px}
 .field-r2{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -129,14 +132,10 @@ button{cursor:pointer}
 .modal{transform:translateY(100%);transition:transform .22s ease}
 .modal-bg.open .modal{transform:translateY(0)}
 .modal.dragging{transition:none}
-.company-tabs{display:flex;gap:8px;overflow:auto;padding-bottom:2px;scrollbar-width:none}
-.company-tabs::-webkit-scrollbar{display:none}
-.company-tab{border:none;border-radius:999px;background:#eef3fa;color:var(--accent);padding:8px 12px;font-size:12px;font-weight:800;white-space:nowrap}
 #day-entries{padding-bottom:0}
 .sum-grid{padding-top:2px;padding-bottom:16px}
 
 .type-sel{grid-template-columns:repeat(2,minmax(0,1fr))}
-.company-tab.active{background:var(--accent);color:#fff}
 .day-modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.22);display:flex;align-items:center;justify-content:center;padding:18px;opacity:0;pointer-events:none;transition:opacity .18s ease;z-index:220}
 .day-modal-bg.open{opacity:1;pointer-events:auto}
 .day-modal{width:min(100%,360px);max-height:min(72dvh,520px);overflow:auto;background:#fff;border:1px solid var(--line);border-radius:22px;box-shadow:0 20px 40px rgba(15,23,42,.18)}
