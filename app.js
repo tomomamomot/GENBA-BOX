@@ -225,7 +225,6 @@ function renderDayEntries() {
   const body = document.getElementById('day-modal-body');
   if (!modal || !title || !body) return;
   const entries = dayEntries(selectedDate);
-  const hidden = !state.settings.showSales;
   title.textContent = `${fmtDateJP(selectedDate)}（${weekdayLabel(selectedDate)}）`;
   if (!entries.length) {
     body.innerHTML = `<div class="day-mini-empty"><div class="empty" style="padding:22px 10px 8px"><div>この日の予定はありません</div><p>追加ボタンから登録できます。</p></div><button class="btn-primary" type="button" data-add-date="${selectedDate}">予定を追加</button></div>`;
@@ -233,8 +232,7 @@ function renderDayEntries() {
     return;
   }
   body.innerHTML = `<div class="day-mini-list">${entries.map((entry) => {
-    const calc = calcEntry(entry);
-    return `<div class="day-mini-card"><div class="day-mini-row"><div><div class="day-mini-title">${escapeHtml(entry.company || '会社名未入力')}</div><div class="day-mini-sub">${escapeHtml(entry.site || '現場名未入力')} ・ ${entry.type === 'sub' ? escapeHtml(entry.workerName || '外注職人') : '自分'} ・ ${shiftLabel(entry.shift)}</div></div><div class="pill ${shiftClass(entry.shift)}">${shiftLabel(entry.shift)}</div></div><div class="day-mini-sub" style="margin-top:8px">${calc.qty}人工 / ${yen(calc.subtotal, hidden)}</div><div class="day-mini-actions"><button class="day-mini-btn" type="button" data-edit-entry="${entry.id}">編集</button><button class="day-mini-btn" type="button" data-sync-entry="${entry.id}">同期</button><button class="day-mini-btn del" type="button" data-del-entry="${entry.id}">削除</button></div></div>`;
+    return `<div class="day-mini-card ${shiftClass(entry.shift)}"><div class="day-mini-row"><div><div class="day-mini-title">${escapeHtml(entry.company || '会社名未入力')}</div><div class="day-mini-sub">${escapeHtml(entry.site || '現場名未入力')} ・ ${entry.type === 'sub' ? escapeHtml(entry.workerName || '外注職人') : '自分'} ・ ${shiftLabel(entry.shift)}</div></div><div class="pill ${shiftClass(entry.shift)}">${shiftLabel(entry.shift)}</div></div><div class="day-mini-actions"><button class="day-mini-btn" type="button" data-edit-entry="${entry.id}">編集</button><button class="day-mini-btn del" type="button" data-del-entry="${entry.id}">削除</button></div></div>`;
   }).join('')}<button class="btn-primary" type="button" data-add-date="${selectedDate}">予定を追加</button></div>`;
   modal.classList.toggle('open', activeScreen === 'cal' && isDayModalOpen);
 }
@@ -583,7 +581,6 @@ function bindEvents() {
     if (addDate) { selectedDate = addDate.dataset.addDate; closeDayModal(); openModal('self'); return; }
     const editButton = event.target.closest('[data-edit-entry]'); if (editButton) { closeDayModal(); openModal('self', editButton.dataset.editEntry); return; }
     const delButton = event.target.closest('[data-del-entry]'); if (delButton) { if (confirm('この予定を削除しますか？')) deleteEntry(delButton.dataset.delEntry); return; }
-    const syncButton = event.target.closest('[data-sync-entry]'); if (syncButton) { gcalEntry(syncButton.dataset.syncEntry); return; }
     const applyReceipt = event.target.closest('[data-apply-receipt]');
     if (applyReceipt) { applyReceiptToEntry(applyReceipt.dataset.applyReceipt); return; }
     const delReceipt = event.target.closest('[data-del-receipt]');
