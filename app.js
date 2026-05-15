@@ -294,22 +294,20 @@ function renderExpenseRows(title, rows) {
 }
 function renderSyncScreen() {
   const month = monthEntries();
-  const year = yearEntries();
-  const monthExpenses = expenseTotals(month);
-  const yearExpenses = expenseTotals(year);
-  const monthExpenseTotal = monthExpenses.reduce((sum, item) => sum + item.total, 0);
-  const yearExpenseTotal = yearExpenses.reduce((sum, item) => sum + item.total, 0);
   const sub = document.getElementById('sync-sub'); if (sub) sub.textContent = '出力と引き継ぎ';
   const calendarCount = document.getElementById('calendar-export-count'); if (calendarCount) calendarCount.textContent = `${month.length}件`;
   const backupStatus = document.getElementById('backup-status'); if (backupStatus) backupStatus.textContent = `${state.entries.length}予定`;
-  const receiptCount = document.getElementById('receipt-sync-count'); if (receiptCount) receiptCount.textContent = `${state.receipts?.length || 0}件`;
-  const expenseTotal = document.getElementById('expense-summary-total'); if (expenseTotal) expenseTotal.textContent = `今月 ${yen(monthExpenseTotal, !state.settings.showSales)}`;
-  const body = document.getElementById('expense-summary-body');
-  if (body) body.innerHTML = `<div class="expense-summary">${renderExpenseRows('今月', monthExpenses)}${renderExpenseRows(`${cursor.getFullYear()}年`, yearExpenses)}</div><div class="expense-year-total">年間合計 <strong>${yen(yearExpenseTotal, !state.settings.showSales)}</strong></div>`;
   const log = document.getElementById('sync-log'); if (log && !log.textContent) log.textContent = '今月分をGoogleカレンダー用ファイルで出力できます';
 }
 function renderReceiptScreen() {
   const sub = document.getElementById('receipt-sub'); if (sub) sub.textContent = `${state.receipts?.length || 0}件`;
+  const monthExpenses = expenseTotals(monthEntries());
+  const yearExpenses = expenseTotals(yearEntries());
+  const monthExpenseTotal = monthExpenses.reduce((sum, item) => sum + item.total, 0);
+  const yearExpenseTotal = yearExpenses.reduce((sum, item) => sum + item.total, 0);
+  const expenseTotal = document.getElementById('receipt-expense-total'); if (expenseTotal) expenseTotal.textContent = `今月 ${yen(monthExpenseTotal, !state.settings.showSales)}`;
+  const summary = document.getElementById('receipt-expense-summary-body');
+  if (summary) summary.innerHTML = `<div class="expense-summary">${renderExpenseRows('今月', monthExpenses)}${renderExpenseRows(`${cursor.getFullYear()}年`, yearExpenses)}</div><div class="expense-year-total">年間合計 <strong>${yen(yearExpenseTotal, !state.settings.showSales)}</strong></div>`;
   const body = document.getElementById('receipt-body'); if (!body) return;
   const receipts = state.receipts || [];
   if (!receipts.length) { body.innerHTML = '<div class="empty"><div>領収書はまだありません</div></div>'; return; }
@@ -557,7 +555,6 @@ function bindEvents() {
   document.getElementById('backup-export-btn')?.addEventListener('click', exportBackupJson);
   document.getElementById('backup-import-btn')?.addEventListener('click', () => document.getElementById('backup-file')?.click());
   document.getElementById('backup-file')?.addEventListener('change', (event) => { importBackupJson(event.target.files?.[0]); event.target.value = ''; });
-  document.getElementById('open-receipt-screen-btn')?.addEventListener('click', () => { activeScreen = 'receipt'; renderAll(); });
   document.getElementById('receipt-pick-btn')?.addEventListener('click', () => document.getElementById('receipt-file')?.click());
   document.getElementById('receipt-file')?.addEventListener('change', (event) => { handleReceiptFiles(event.target.files); event.target.value = ''; });
   document.getElementById('tgl-inv').addEventListener('click', () => { document.getElementById('tgl-inv').classList.toggle('on'); document.getElementById('inv-no-row').classList.toggle('hidden', !document.getElementById('tgl-inv').classList.contains('on')); });
@@ -587,8 +584,6 @@ function bindEvents() {
     const editButton = event.target.closest('[data-edit-entry]'); if (editButton) { closeDayModal(); openModal('self', editButton.dataset.editEntry); return; }
     const delButton = event.target.closest('[data-del-entry]'); if (delButton) { if (confirm('この予定を削除しますか？')) deleteEntry(delButton.dataset.delEntry); return; }
     const syncButton = event.target.closest('[data-sync-entry]'); if (syncButton) { gcalEntry(syncButton.dataset.syncEntry); return; }
-    const receiptCategory = event.target.closest('[data-receipt-category]');
-    if (receiptCategory) { const item = state.receipts.find((receipt) => receipt.id === receiptCategory.dataset.receiptCategory); if (item) { item.category = receiptCategory.value; item.status = '確認済み'; saveState(); renderReceiptScreen(); } return; }
     const applyReceipt = event.target.closest('[data-apply-receipt]');
     if (applyReceipt) { applyReceiptToEntry(applyReceipt.dataset.applyReceipt); return; }
     const delReceipt = event.target.closest('[data-del-receipt]');

@@ -208,31 +208,6 @@
         <input id="backup-file" type="file" accept="application/json,.json" hidden>
       </div>
     </div>
-
-    <div class="sync-section">
-      <div class="sync-section-head">
-        <div>
-          <div class="sync-section-title">領収書</div>
-          <div class="sync-section-sub">撮影・仕分け・予定へ入力</div>
-        </div>
-        <span id="receipt-sync-count">0件</span>
-      </div>
-      <div class="sync-actions">
-        <button class="btn-secondary" type="button" id="open-receipt-screen-btn">領収書を開く</button>
-      </div>
-    </div>
-
-    <div class="sync-section">
-      <div class="sync-section-head">
-        <div>
-          <div class="sync-section-title">経費別集計</div>
-          <div class="sync-section-sub">今月と今年</div>
-        </div>
-        <span id="expense-summary-total">¥0</span>
-      </div>
-      <div id="expense-summary-body"></div>
-    </div>
-
     <div class="sync-log" id="sync-log"></div>
   </div>
 </div>
@@ -253,6 +228,16 @@
   <div class="receipt-import">
     <input id="receipt-file" type="file" accept="image/*,.pdf" multiple hidden>
     <button class="btn-primary" type="button" id="receipt-pick-btn">領収書を読み込み</button>
+  </div>
+  <div class="receipt-summary">
+    <div class="sync-section-head">
+      <div>
+        <div class="sync-section-title">経費別集計</div>
+        <div class="sync-section-sub">今月と今年</div>
+      </div>
+      <span id="receipt-expense-total">¥0</span>
+    </div>
+    <div id="receipt-expense-summary-body"></div>
   </div>
   <div id="receipt-body"></div>
 </div>
