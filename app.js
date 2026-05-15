@@ -282,22 +282,38 @@ function renderInvoiceScreen() {
   const expenseSums = expenseItems().map((item) => ({ ...item, total: rows.reduce((sum, row) => sum + num(row.entry.expenses?.[item.id]), 0) })).filter((item) => item.total > 0);
   body.innerHTML = `<div class="mode-switch"><button class="mode-btn ${mode === 'with' ? 'active' : ''}" data-invoice-mode="with">インボイスあり</button><button class="mode-btn ${mode === 'without' ? 'active' : ''}" data-invoice-mode="without">インボイスなし</button></div><div class="btn-row" style="padding:0 16px 10px"><button class="btn-secondary" data-export-demen>出面CSV</button><button class="btn-secondary" data-export-invoice>請求CSV</button><button class="btn-gold" data-print-demen>出面表印刷</button><button class="btn-primary" data-print-invoice>請求書印刷</button></div><div class="tbl-wrap" id="print-demen-wrap"><table class="demen"><thead><tr><th>日</th><th>現場名</th><th>区分</th><th class="right">人工</th><th class="right">単価</th><th class="right">人工計</th><th class="right">残業h</th><th class="right">残業計</th>${expenseItems().map((item) => `<th class="right">${escapeHtml(item.label)}</th>`).join('')}<th class="right">合計</th></tr></thead><tbody>${rows.map(({ entry, calc }) => `<tr><td>${entry.date.slice(8, 10)}</td><td>${escapeHtml(entry.site)}</td><td>${shiftLabel(entry.shift)}</td><td class="right">${calc.qty}</td><td class="right">${yen(calc.unitRate, hidden)}</td><td class="right">${yen(calc.labor, hidden)}</td><td class="right">${calc.otHours || ''}</td><td class="right">${calc.overtime ? yen(calc.overtime, hidden) : ''}</td>${expenseItems().map((item) => `<td class="right">${num(entry.expenses?.[item.id]) ? yen(entry.expenses[item.id], hidden) : ''}</td>`).join('')}<td class="right">${yen(calc.subtotal, hidden)}</td></tr>`).join('')}</tbody><tfoot><tr><td colspan="${9 + expenseItems().length}" class="right">月合計</td><td class="right">${yen(subtotal, hidden)}</td></tr></tfoot></table></div><div class="inv-box" id="print-invoice-box"><div class="inv-hd"><div class="inv-hd-title">請求書</div><div class="inv-hd-to">${escapeHtml(selectedCompany)} 御中</div><div class="inv-hd-date">請求日 ${toYmd(new Date())}</div><div class="inv-badge">${mode === 'with' && state.settings.invoiceEnabled ? 'インボイス対応' : 'インボイスなし'}</div></div><div class="inv-amt-box"><div class="inv-amt-lbl">ご請求金額</div><div class="inv-amt-val ${hidden ? 'hidden-amount' : ''}">${yen(total, hidden)}</div><div class="inv-amt-note">${fmtMonth(cursor)}分</div></div><div class="inv-sec"><div class="inv-sec-title">請求内訳</div><div class="inv-row"><span class="lbl">売上（税別）</span><span class="val ${hidden ? 'hidden-amount' : ''}">${yen(subtotal, hidden)}</span></div><div class="inv-row"><span class="lbl">消費税 (${state.settings.taxRate}%)</span><span class="val ${hidden ? 'hidden-amount' : ''}">${yen(tax, hidden)}</span></div><div class="inv-total"><span>合計</span><span class="val ${hidden ? 'hidden-amount' : ''}">${yen(total, hidden)}</span></div></div><div class="inv-sec"><div class="inv-sec-title">経費内訳</div>${expenseSums.length ? expenseSums.map((item) => `<div class="inv-row"><span class="lbl">${escapeHtml(item.label)}</span><span class="val ${hidden ? 'hidden-amount' : ''}">${yen(item.total, hidden)}</span></div>`).join('') : `<div class="inv-row"><span class="lbl">経費なし</span><span class="val">-</span></div>`}${state.settings.invoiceEnabled && mode === 'with' && state.settings.invoiceNo ? `<div class="inv-row"><span class="lbl">登録番号</span><span class="val">${escapeHtml(state.settings.invoiceNo)}</span></div>` : ''}</div>${state.settings.bank ? `<div class="inv-bank"><strong>振込先</strong>${escapeHtml(state.settings.bank)} ${escapeHtml(state.settings.branch)}<br>${escapeHtml(state.settings.accountNo)}<br>${escapeHtml(state.settings.accountName)}</div>` : ''}${state.settings.name || state.settings.companyName ? `<div class="inv-sender"><strong>${escapeHtml(state.settings.companyName || state.settings.name)}</strong>${state.settings.address ? `${escapeHtml(state.settings.address)}<br>` : ''}${state.settings.tel ? `TEL ${escapeHtml(state.settings.tel)}` : ''}</div>` : ''}</div>`;
 }
+function expenseTotals(entries) {
+  return expenseItems().map((item) => ({
+    ...item,
+    total: entries.reduce((sum, entry) => sum + num(entry.expenses?.[item.id]), 0),
+  })).filter((item) => item.total > 0);
+}
+function renderExpenseRows(title, rows) {
+  if (!rows.length) return `<div class="expense-group"><div class="expense-group-title">${escapeHtml(title)}</div><div class="expense-empty">経費入力なし</div></div>`;
+  return `<div class="expense-group"><div class="expense-group-title">${escapeHtml(title)}</div>${rows.map((row) => `<div class="expense-row"><span>${escapeHtml(row.label)}</span><strong>${yen(row.total, !state.settings.showSales)}</strong></div>`).join('')}</div>`;
+}
 function renderSyncScreen() {
-  const s = state.settings;
-  const client = document.getElementById('google-client-id'); if (client) client.value = s.googleClientId || '';
-  const cal = document.getElementById('google-calendar-id'); if (cal) cal.value = s.googleCalendarId || 'primary';
-  const mode = document.getElementById('google-store-mode'); if (mode) mode.value = s.googleStoreMode || 'local';
-  const status = document.getElementById('google-account-status'); if (status) status.textContent = s.googleAccountEmail || '未接続';
-  const sub = document.getElementById('sync-sub'); if (sub) sub.textContent = s.googleAccountEmail ? '接続済み' : '未接続';
-  const dot = document.getElementById('google-status-dot'); if (dot) dot.classList.toggle('off', !s.googleAccountEmail);
-  const log = document.getElementById('sync-log'); if (log && !log.textContent) log.textContent = 'Google連携の設定待ち';
+  const month = monthEntries();
+  const year = yearEntries();
+  const monthExpenses = expenseTotals(month);
+  const yearExpenses = expenseTotals(year);
+  const monthExpenseTotal = monthExpenses.reduce((sum, item) => sum + item.total, 0);
+  const yearExpenseTotal = yearExpenses.reduce((sum, item) => sum + item.total, 0);
+  const sub = document.getElementById('sync-sub'); if (sub) sub.textContent = '出力と引き継ぎ';
+  const calendarCount = document.getElementById('calendar-export-count'); if (calendarCount) calendarCount.textContent = `${month.length}件`;
+  const backupStatus = document.getElementById('backup-status'); if (backupStatus) backupStatus.textContent = `${state.entries.length}予定`;
+  const receiptCount = document.getElementById('receipt-sync-count'); if (receiptCount) receiptCount.textContent = `${state.receipts?.length || 0}件`;
+  const expenseTotal = document.getElementById('expense-summary-total'); if (expenseTotal) expenseTotal.textContent = `今月 ${yen(monthExpenseTotal, !state.settings.showSales)}`;
+  const body = document.getElementById('expense-summary-body');
+  if (body) body.innerHTML = `<div class="expense-summary">${renderExpenseRows('今月', monthExpenses)}${renderExpenseRows(`${cursor.getFullYear()}年`, yearExpenses)}</div><div class="expense-year-total">年間合計 <strong>${yen(yearExpenseTotal, !state.settings.showSales)}</strong></div>`;
+  const log = document.getElementById('sync-log'); if (log && !log.textContent) log.textContent = '今月分をGoogleカレンダー用ファイルで出力できます';
 }
 function renderReceiptScreen() {
   const sub = document.getElementById('receipt-sub'); if (sub) sub.textContent = `${state.receipts?.length || 0}件`;
   const body = document.getElementById('receipt-body'); if (!body) return;
   const receipts = state.receipts || [];
   if (!receipts.length) { body.innerHTML = '<div class="empty"><div>領収書はまだありません</div></div>'; return; }
-  body.innerHTML = '<div class="receipt-list">' + receipts.map((receipt) => `<div class="receipt-card"><div><div class="receipt-name">${escapeHtml(receipt.fileName || '領収書')}</div><div class="receipt-meta">${escapeHtml(receipt.status)} ・ ${escapeHtml(receipt.importedAt.slice(0, 10))}</div></div><select class="receipt-select" data-receipt-category="${receipt.id}">${expenseItems().map((item) => `<option value="${escapeHtml(item.label)}" ${item.label === receipt.category ? 'selected' : ''}>${escapeHtml(item.label)}</option>`).join('')}</select><button class="receipt-del" type="button" data-del-receipt="${receipt.id}">×</button></div>`).join('') + '</div>';
+  body.innerHTML = '<div class="receipt-list">' + receipts.map((receipt) => `<div class="receipt-card"><div class="receipt-main"><div class="receipt-name">${escapeHtml(receipt.fileName || '領収書')}</div><div class="receipt-meta">${escapeHtml(receipt.status)} ・ ${escapeHtml((receipt.importedAt || '').slice(0, 10))}</div></div><div class="receipt-fields"><input class="receipt-date" type="date" data-receipt-date="${receipt.id}" value="${escapeHtml(receipt.date || '')}"><input class="receipt-amount" type="number" inputmode="numeric" min="0" step="1" data-receipt-amount="${receipt.id}" value="${num(receipt.amount) || ''}" placeholder="金額"></div><select class="receipt-select" data-receipt-category="${receipt.id}">${expenseItems().map((item) => `<option value="${escapeHtml(item.label)}" ${item.label === receipt.category ? 'selected' : ''}>${escapeHtml(item.label)}</option>`).join('')}</select><button class="btn-secondary receipt-apply" type="button" data-apply-receipt="${receipt.id}">予定へ入力</button><button class="receipt-del" type="button" data-del-receipt="${receipt.id}">×</button></div>`).join('') + '</div>';
 }
 function renderSettings() {
   const s = state.settings;
@@ -376,10 +392,117 @@ function saveGoogleSettings() {
   saveState(); renderAll(); setSyncLog('Google設定を保存しました');
 }
 function setSyncLog(message) { const log = document.getElementById('sync-log'); if (log) log.textContent = message; }
+function downloadText(filename, text, type) {
+  const blob = new Blob([text], { type });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+function icsEscape(value) { return String(value || '').replaceAll('\\', '\\\\').replaceAll(';', '\\;').replaceAll(',', '\\,').replace(/\r?\n/g, '\\n'); }
+function icsDate(ymd) { return String(ymd || '').replaceAll('-', ''); }
+function icsStamp() { return new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, ''); }
+function calendarDescription(entry) {
+  const calc = calcEntry(entry);
+  const lines = [`区分: ${typeLabel(entry.type)} / ${shiftLabel(entry.shift)}`];
+  if (entry.workerName) lines.push(`職人名: ${entry.workerName}`);
+  if (entry.company) lines.push(`会社名: ${entry.company}`);
+  if (entry.site) lines.push(`現場名: ${entry.site}`);
+  if (calc.qty) lines.push(`人工: ${calc.qty}`);
+  if (entry.notes) lines.push(`メモ: ${entry.notes}`);
+  return lines.join('\n');
+}
+function googleCalendarUrl(entry) {
+  const start = icsDate(entry.date);
+  const endDate = fromYmd(entry.date); endDate.setDate(endDate.getDate() + 1);
+  const params = new URLSearchParams({ action: 'TEMPLATE', text: companyEventTitle(entry), dates: `${start}/${icsDate(toYmd(endDate))}`, details: calendarDescription(entry) });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+function buildIcs(entries) {
+  const stamp = icsStamp();
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//GENBA BOX//Calendar Export//JA', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
+  entries.forEach((entry) => {
+    const endDate = fromYmd(entry.date); endDate.setDate(endDate.getDate() + 1);
+    lines.push('BEGIN:VEVENT', `UID:${icsEscape(entry.id)}@genba-box`, `DTSTAMP:${stamp}`, `DTSTART;VALUE=DATE:${icsDate(entry.date)}`, `DTEND;VALUE=DATE:${icsDate(toYmd(endDate))}`, `SUMMARY:${icsEscape(companyEventTitle(entry))}`, `DESCRIPTION:${icsEscape(calendarDescription(entry))}`, 'END:VEVENT');
+  });
+  lines.push('END:VCALENDAR', '');
+  return lines.join('\r\n');
+}
+function exportMonthCalendarIcs() {
+  const entries = monthEntries();
+  if (!entries.length) { setSyncLog('今月の予定がありません'); return; }
+  downloadText(`${monthKey(cursor)}_GENBA-BOX.ics`, buildIcs(entries), 'text/calendar;charset=utf-8;');
+  setSyncLog(`${fmtMonth(cursor)}の予定${entries.length}件を出力しました`);
+}
+function openSelectedDayGoogleCalendar() {
+  const entries = dayEntries(selectedDate);
+  if (!entries.length) { setSyncLog('選択日の予定がありません'); return; }
+  window.open(googleCalendarUrl(entries[0]), '_blank');
+  setSyncLog(entries.length > 1 ? '選択日の先頭予定をGoogleカレンダーで開きました' : '選択日の予定をGoogleカレンダーで開きました');
+}
+function exportBackupJson() {
+  const payload = { app: 'GENBA BOX', version: 1, exportedAt: new Date().toISOString(), state: normalizeState(state) };
+  downloadText(`genba-box-backup-${toYmd(new Date())}.json`, JSON.stringify(payload, null, 2), 'application/json;charset=utf-8;');
+  setSyncLog('バックアップを書き出しました');
+}
+function importBackupJson(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const payload = JSON.parse(reader.result);
+      state = normalizeState(payload.state || payload);
+      saveState();
+      renderAll();
+      showSaveFeedback('データを読み込みました');
+      setSyncLog('バックアップを読み込みました');
+    } catch (error) {
+      alert('バックアップを読み込めませんでした');
+    }
+  };
+  reader.readAsText(file, 'utf-8');
+}
+function guessReceiptDate(name) {
+  const text = String(name || '');
+  const ymd = text.match(/(20\d{2})[-_.年]?(\d{1,2})[-_.月]?(\d{1,2})/);
+  if (ymd) return `${ymd[1]}-${String(Number(ymd[2])).padStart(2, '0')}-${String(Number(ymd[3])).padStart(2, '0')}`;
+  const md = text.match(/(?:^|[^\d])(\d{1,2})[-_.月](\d{1,2})(?:日|[^\d]|$)/);
+  if (md) return `${cursor.getFullYear()}-${String(Number(md[1])).padStart(2, '0')}-${String(Number(md[2])).padStart(2, '0')}`;
+  return '';
+}
+function guessReceiptAmount(name) {
+  const match = String(name || '').match(/(?:¥|円|amount|amt)?\s*(\d{3,6})(?:円|yen)?/i);
+  return match ? num(match[1]) : 0;
+}
+function updateReceiptField(id, patch) {
+  const item = (state.receipts || []).find((receipt) => receipt.id === id);
+  if (!item) return;
+  Object.assign(item, patch, { status: patch.status || item.status });
+  saveState();
+}
+function applyReceiptToEntry(id) {
+  const receipt = (state.receipts || []).find((item) => item.id === id);
+  if (!receipt) return;
+  if (!receipt.date) { alert('領収書の日付を入れてください'); return; }
+  if (!num(receipt.amount)) { alert('領収書の金額を入れてください'); return; }
+  const entry = dayEntries(receipt.date)[0];
+  if (!entry) { alert('同じ日付の予定がありません'); return; }
+  const expense = expenseItems().find((item) => item.label === receipt.category) || expenseItems()[0];
+  if (!expense) return;
+  entry.expenses = { ...(entry.expenses || {}) };
+  entry.expenses[expense.id] = num(entry.expenses[expense.id]) + num(receipt.amount);
+  entry.updatedAt = new Date().toISOString();
+  receipt.status = '予定へ入力済み';
+  receipt.appliedEntryId = entry.id;
+  saveState();
+  renderAll();
+  showSaveFeedback('領収書を予定へ入力しました');
+}
 function handleReceiptFiles(files) {
   const list = Array.from(files || []);
   if (!list.length) return;
-  state.receipts = [...(state.receipts || []), ...list.map((file) => normalizeReceipt({ fileName: file.name, importedAt: new Date().toISOString(), category: guessReceiptCategory(file.name), status: '仕分け候補' }))];
+  state.receipts = [...(state.receipts || []), ...list.map((file) => normalizeReceipt({ fileName: file.name, importedAt: new Date().toISOString(), category: guessReceiptCategory(file.name), date: guessReceiptDate(file.name), amount: guessReceiptAmount(file.name), status: '仕分け候補' }))];
   saveState(); renderReceiptScreen();
 }
 function saveSettings() {
@@ -391,9 +514,7 @@ function saveSettings() {
 function deleteEntry(id) { state.entries = state.entries.filter((entry) => entry.id !== id); saveState(); renderAll(); }
 function gcalEntry(id) {
   const entry = state.entries.find((item) => item.id === id); if (!entry) return;
-  const start = entry.date.replaceAll('-', ''); const endDate = fromYmd(entry.date); endDate.setDate(endDate.getDate() + 1); const end = toYmd(endDate).replaceAll('-', '');
-  const title = encodeURIComponent(companyEventTitle(entry));
-  window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}`, '_blank');
+  window.open(googleCalendarUrl(entry), '_blank');
 }
 function csvCell(value) { const text = String(value ?? ''); return `"${text.replaceAll('"', '""')}"`; }
 function downloadCsv(filename, rows) { const csv = rows.map((row) => row.map(csvCell).join(',')).join('\r\n'); const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = filename; link.click(); URL.revokeObjectURL(link.href); }
@@ -431,8 +552,12 @@ function bindEvents() {
   document.getElementById('st-company-new')?.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); addSettingListItem('st-companies', 'st-company-new'); } });
   document.getElementById('st-expense-new')?.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); addSettingListItem('st-expenses', 'st-expense-new'); } });
   document.getElementById('save-google-settings-btn')?.addEventListener('click', saveGoogleSettings);
-  document.getElementById('google-connect-btn')?.addEventListener('click', () => setSyncLog(state.settings.googleClientId ? 'OAuth接続は次の実装で有効化します' : 'Client IDを入力してください'));
-  document.getElementById('google-sync-now-btn')?.addEventListener('click', () => setSyncLog(state.settings.googleClientId ? '同期エンジンは次の実装で有効化します' : 'Client IDを入力してください'));
+  document.getElementById('google-export-month-btn')?.addEventListener('click', exportMonthCalendarIcs);
+  document.getElementById('google-open-selected-day-btn')?.addEventListener('click', openSelectedDayGoogleCalendar);
+  document.getElementById('backup-export-btn')?.addEventListener('click', exportBackupJson);
+  document.getElementById('backup-import-btn')?.addEventListener('click', () => document.getElementById('backup-file')?.click());
+  document.getElementById('backup-file')?.addEventListener('change', (event) => { importBackupJson(event.target.files?.[0]); event.target.value = ''; });
+  document.getElementById('open-receipt-screen-btn')?.addEventListener('click', () => { activeScreen = 'receipt'; renderAll(); });
   document.getElementById('receipt-pick-btn')?.addEventListener('click', () => document.getElementById('receipt-file')?.click());
   document.getElementById('receipt-file')?.addEventListener('change', (event) => { handleReceiptFiles(event.target.files); event.target.value = ''; });
   document.getElementById('tgl-inv').addEventListener('click', () => { document.getElementById('tgl-inv').classList.toggle('on'); document.getElementById('inv-no-row').classList.toggle('hidden', !document.getElementById('tgl-inv').classList.contains('on')); });
@@ -464,8 +589,10 @@ function bindEvents() {
     const syncButton = event.target.closest('[data-sync-entry]'); if (syncButton) { gcalEntry(syncButton.dataset.syncEntry); return; }
     const receiptCategory = event.target.closest('[data-receipt-category]');
     if (receiptCategory) { const item = state.receipts.find((receipt) => receipt.id === receiptCategory.dataset.receiptCategory); if (item) { item.category = receiptCategory.value; item.status = '確認済み'; saveState(); renderReceiptScreen(); } return; }
+    const applyReceipt = event.target.closest('[data-apply-receipt]');
+    if (applyReceipt) { applyReceiptToEntry(applyReceipt.dataset.applyReceipt); return; }
     const delReceipt = event.target.closest('[data-del-receipt]');
-    if (delReceipt) { state.receipts = (state.receipts || []).filter((receipt) => receipt.id !== delReceipt.dataset.delReceipt); saveState(); renderReceiptScreen(); return; }
+    if (delReceipt) { state.receipts = (state.receipts || []).filter((receipt) => receipt.id !== delReceipt.dataset.delReceipt); saveState(); renderAll(); return; }
     const companyChip = event.target.closest('[data-company]'); if (companyChip) { selectedCompany = companyChip.dataset.company; renderInvoiceScreen(); return; }
     const modeButton = event.target.closest('[data-invoice-mode]'); if (modeButton) { setCompanyInvoiceMode(selectedCompany, modeButton.dataset.invoiceMode); renderInvoiceScreen(); return; }
     if (event.target.matches('#cancel-entry-btn')) { closeModal(); return; }
@@ -484,6 +611,9 @@ function bindEvents() {
   });
 
   document.addEventListener('change', (event) => {
+    if (event.target.matches('[data-receipt-category]')) { updateReceiptField(event.target.dataset.receiptCategory, { category: event.target.value, status: '確認済み' }); renderAll(); return; }
+    if (event.target.matches('[data-receipt-date]')) { updateReceiptField(event.target.dataset.receiptDate, { date: event.target.value, status: '確認済み' }); return; }
+    if (event.target.matches('[data-receipt-amount]')) { updateReceiptField(event.target.dataset.receiptAmount, { amount: num(event.target.value), status: '確認済み' }); return; }
     if (event.target.id === 'f-shift') {
       const rate = document.getElementById('f-rate'); if (!rate) return;
       if (event.target.value === 'night') rate.value = rateFieldValue(state.settings.defaultNightRate); else if (!num(rate.value)) rate.value = rateFieldValue(state.settings.defaultDayRate);

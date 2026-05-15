@@ -171,7 +171,7 @@
     <div class="topbar-row">
       <div>
         <div class="topbar-title">Google同期</div>
-        <div class="topbar-sub" id="sync-sub">未接続</div>
+        <div class="topbar-sub" id="sync-sub">出力と引き継ぎ</div>
       </div>
       <div class="topbar-actions">
         <button class="ghost-icon-btn" data-menu-open aria-label="メニュー">&#9776;</button>
@@ -180,23 +180,59 @@
     <div class="top-menu hidden top-menu-clone"></div>
   </div>
   <div class="sync-panel">
-    <div class="status-card">
-      <div>
-        <div class="status-label">Googleアカウント</div>
-        <div class="status-value" id="google-account-status">未接続</div>
+    <div class="sync-section">
+      <div class="sync-section-head">
+        <div>
+          <div class="sync-section-title">Googleカレンダー出力</div>
+          <div class="sync-section-sub">予定をカレンダーに入れる</div>
+        </div>
+        <span id="calendar-export-count">0件</span>
       </div>
-      <span class="status-dot off" id="google-status-dot"></span>
+      <div class="sync-actions two">
+        <button class="btn-primary" type="button" id="google-export-month-btn">今月分を出力</button>
+        <button class="btn-secondary" type="button" id="google-open-selected-day-btn">選択日を開く</button>
+      </div>
     </div>
-    <div class="st-section">
-      <div class="st-row"><span class="st-label">Client ID</span><input class="st-input" id="google-client-id" placeholder="OAuth Client ID"></div>
-      <div class="st-row"><span class="st-label">Calendar</span><input class="st-input" id="google-calendar-id" placeholder="primary"></div>
-      <div class="st-row"><span class="st-label">保存先</span><select class="st-select" id="google-store-mode"><option value="local">この端末</option><option value="drive">Google Drive</option></select></div>
+
+    <div class="sync-section">
+      <div class="sync-section-head">
+        <div>
+          <div class="sync-section-title">データ引き継ぎ</div>
+          <div class="sync-section-sub">スマホ変更・別端末用</div>
+        </div>
+        <span id="backup-status">この端末</span>
+      </div>
+      <div class="sync-actions two">
+        <button class="btn-secondary" type="button" id="backup-export-btn">データを書き出し</button>
+        <button class="btn-secondary" type="button" id="backup-import-btn">データを読み込み</button>
+        <input id="backup-file" type="file" accept="application/json,.json" hidden>
+      </div>
     </div>
-    <div class="sync-actions">
-      <button class="btn-primary" type="button" id="save-google-settings-btn">Google設定を保存</button>
-      <button class="btn-secondary" type="button" id="google-connect-btn">Googleで接続</button>
-      <button class="btn-secondary" type="button" id="google-sync-now-btn">同期</button>
+
+    <div class="sync-section">
+      <div class="sync-section-head">
+        <div>
+          <div class="sync-section-title">領収書</div>
+          <div class="sync-section-sub">撮影・仕分け・予定へ入力</div>
+        </div>
+        <span id="receipt-sync-count">0件</span>
+      </div>
+      <div class="sync-actions">
+        <button class="btn-secondary" type="button" id="open-receipt-screen-btn">領収書を開く</button>
+      </div>
     </div>
+
+    <div class="sync-section">
+      <div class="sync-section-head">
+        <div>
+          <div class="sync-section-title">経費別集計</div>
+          <div class="sync-section-sub">今月と今年</div>
+        </div>
+        <span id="expense-summary-total">¥0</span>
+      </div>
+      <div id="expense-summary-body"></div>
+    </div>
+
     <div class="sync-log" id="sync-log"></div>
   </div>
 </div>

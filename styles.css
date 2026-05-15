@@ -147,13 +147,18 @@ input[type="number"]{appearance:textfield;-moz-appearance:textfield}
 @media (max-width:480px){.day-modal-bg{padding:12px}.day-modal{width:100%;border-radius:20px}}
 
 .sync-panel,.receipt-import{padding:14px 16px}
-.status-card{display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-bottom:12px;box-shadow:var(--shadow)}
+.sync-section{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:var(--shadow)}
+.sync-section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}.sync-section-head>span{font-size:13px;color:var(--sub);font-weight:900;white-space:nowrap}
+.sync-section-title{font-size:16px;font-weight:900}.sync-section-sub{margin-top:3px;font-size:12px;color:var(--sub);font-weight:800}
+.status-card{display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:12px;box-shadow:var(--shadow)}
 .status-label{font-size:12px;color:var(--sub);font-weight:800}.status-value{margin-top:4px;font-size:16px;font-weight:900}
 .status-dot{width:12px;height:12px;border-radius:50%;background:var(--trip)}.status-dot.off{background:#cbd5e1}
-.sync-actions{display:grid;gap:10px;padding-top:4px}.sync-log{margin-top:12px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px;color:var(--sub);font-size:13px;font-weight:800}
-.receipt-list{display:grid;gap:10px;padding:0 16px 18px}.receipt-card{display:grid;grid-template-columns:minmax(0,1fr) 118px 38px;gap:10px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;box-shadow:var(--shadow)}
+.sync-actions{display:grid;gap:10px;padding-top:4px}.sync-actions.two{grid-template-columns:repeat(2,minmax(0,1fr))}.sync-actions .btn-primary,.sync-actions .btn-secondary{min-height:44px}
+.sync-log{margin-top:12px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px;color:var(--sub);font-size:13px;font-weight:800}
+.expense-summary{display:grid;gap:10px}.expense-group{background:#f8fafc;border:1px solid #e5edf5;border-radius:12px;padding:10px}.expense-group-title{font-size:13px;font-weight:900;color:var(--accent);margin-bottom:7px}.expense-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid #e5edf5;font-size:14px;font-weight:800}.expense-row:first-of-type{border-top:none}.expense-row strong{font-size:14px}.expense-empty{font-size:13px;color:var(--sub);font-weight:800}.expense-year-total{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--line);font-size:14px;font-weight:900}
+.receipt-list{display:grid;gap:10px;padding:0 16px 18px}.receipt-card{display:grid;grid-template-columns:minmax(0,1fr) 168px 118px 96px 38px;gap:10px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;box-shadow:var(--shadow)}
 .receipt-name{font-size:14px;font-weight:900;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.receipt-meta{margin-top:4px;font-size:12px;color:var(--sub);font-weight:700}
-.receipt-select{width:100%;border:1px solid var(--line);border-radius:11px;padding:9px 8px;background:#fafcff;color:var(--ink);font-size:13px;font-weight:800}.receipt-del{width:38px;height:38px;border:none;border-radius:11px;background:#fff1f1;color:var(--red);font-size:22px;font-weight:900}
+.receipt-fields{display:grid;grid-template-columns:1fr;gap:6px}.receipt-date,.receipt-amount,.receipt-select{width:100%;border:1px solid var(--line);border-radius:11px;padding:9px 8px;background:#fafcff;color:var(--ink);font-size:13px;font-weight:800}.receipt-apply{height:38px;padding:0 10px;font-size:12px}.receipt-del{width:38px;height:38px;border:none;border-radius:11px;background:#fff1f1;color:var(--red);font-size:22px;font-weight:900}
 
 
 .inline-add{display:grid;grid-template-columns:minmax(0,1fr) 78px;gap:8px;align-items:center}
@@ -164,3 +169,5 @@ input[type="number"]{appearance:textfield;-moz-appearance:textfield}
 .empty-inline{font-size:13px;color:var(--sub);font-weight:800;padding:4px 0}
 .save-status{position:fixed;left:50%;bottom:calc(26px + var(--safe-bot));transform:translate(-50%,18px);z-index:500;background:#14213d;color:#fff;border-radius:14px;padding:13px 18px;box-shadow:0 16px 34px rgba(15,23,42,.24);font-size:14px;font-weight:900;opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease;white-space:nowrap}.save-status.show{opacity:1;transform:translate(-50%,0)}
 .sum-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.sum-card{min-height:82px}
+
+@media (max-width:720px){.receipt-card{grid-template-columns:minmax(0,1fr) 38px}.receipt-main,.receipt-fields,.receipt-select,.receipt-apply{grid-column:1/-1}.receipt-del{grid-column:2;grid-row:1}.sync-actions.two{grid-template-columns:1fr}}
