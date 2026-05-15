@@ -129,21 +129,25 @@ function writeCompanyPresetValues(presets) {
   writeSettingList('st-companies', normalized.map((item) => item.name));
 }
 function companyRateText(preset) {
-  return preset.name || '';
+  const parts = [];
+  if (num(preset.dayRate)) parts.push(`日 ${yen(preset.dayRate)}`);
+  if (num(preset.nightRate)) parts.push(`夜 ${yen(preset.nightRate)}`);
+  if (num(preset.otRate)) parts.push(`残 ${yen(preset.otRate)}`);
+  return parts.join(' / ') || '単価未設定';
 }
 function renderCompanyPresetList() {
   const list = document.getElementById('st-company-list'); if (!list) return;
   const presets = companyPresetValues();
-  list.innerHTML = presets.length ? presets.map((preset, index) => `<div class="company-rate-card"><div><div class="company-rate-name">${escapeHtml(preset.name)}</div></div><button type="button" data-remove-company-preset="${index}" aria-label="削除">×</button></div>`).join('') : '<div class="empty-inline">まだ登録がありません</div>';
+  list.innerHTML = presets.length ? presets.map((preset, index) => `<div class="company-rate-card"><div><div class="company-rate-name">${escapeHtml(preset.name)}</div><div class="company-rate-meta">${escapeHtml(companyRateText(preset))}</div></div><button type="button" data-remove-company-preset="${index}" aria-label="削除">×</button></div>`).join('') : '<div class="empty-inline">まだ登録がありません</div>';
 }
 function renderSettingListEditors() { renderCompanyPresetList(); renderEditableList('st-expense-list', 'st-expenses'); }
 function addCompanyPreset() {
   const nameInput = document.getElementById('st-company-new'); if (!nameInput) return;
   const name = nameInput.value.trim(); if (!name) return;
   const next = companyPresetValues().filter((item) => item.name !== name);
-  next.push({ id: crypto.randomUUID(), name, dayRate: 0, nightRate: 0, otRate: 0 });
+  next.push({ id: crypto.randomUUID(), name, dayRate: num(document.getElementById('st-company-day-new')?.value), nightRate: num(document.getElementById('st-company-night-new')?.value), otRate: num(document.getElementById('st-company-ot-new')?.value) });
   writeCompanyPresetValues(next);
-  ['st-company-new'].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['st-company-new', 'st-company-day-new', 'st-company-night-new', 'st-company-ot-new'].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ''; });
   renderCompanyPresetList();
 }
 function addSettingListItem(hiddenId, inputId) {
@@ -388,6 +392,16 @@ function closeModal() {
   document.getElementById('modal-bg').classList.remove('open');
   editingId = null;
 }
+function applyCompanyRate(name) {
+  const preset = companyPresetByName(name);
+  if (!preset) return;
+  const shift = document.getElementById('f-shift')?.value || 'day';
+  const rate = rateForPresetShift(preset, shift);
+  const rateInput = document.getElementById('f-rate');
+  const otRateInput = document.getElementById('f-ot-rate');
+  if (rateInput && num(rate)) rateInput.value = rateFieldValue(rate);
+  if (otRateInput && num(preset.otRate)) otRateInput.value = rateFieldValue(preset.otRate);
+}
 function collectEntryForm() {
   const type = document.querySelector('[data-entry-type].active')?.dataset.entryType || 'self';
   const startDate = document.getElementById('f-date').value;
@@ -546,7 +560,7 @@ function handleReceiptFiles(files) {
 }
 function saveSettings() {
   const linesToObjects = (text, previous) => text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((label, index) => ({ id: previous[index]?.id || `exp${index + 1}`, label }));
-  const companyRates = companyPresetValues().map((item) => ({ id: item.id || crypto.randomUUID(), name: item.name, dayRate: 0, nightRate: 0, otRate: 0 }));
+  const companyRates = companyPresetValues();
   state.settings = { ...state.settings, name: document.getElementById('st-name').value.trim(), address: document.getElementById('st-addr').value.trim(), tel: document.getElementById('st-tel').value.trim(), companyName: document.getElementById('st-co').value.trim(), bank: document.getElementById('st-bank').value.trim(), branch: document.getElementById('st-branch').value.trim(), accountNo: document.getElementById('st-accno').value.trim(), accountName: document.getElementById('st-accname').value.trim(), invoiceNo: document.getElementById('st-invno').value.trim(), invoiceEnabled: document.getElementById('tgl-inv').classList.contains('on'), showSubcontract: document.getElementById('tgl-subcontract')?.classList.contains('on') !== false, taxRate: num(document.getElementById('st-tax').value || 10), defaultDayRate: 0, defaultNightRate: 0, defaultOtRate: 0, companyRates, companies: companyRates.map((item) => item.name), expenseItems: linesToObjects(document.getElementById('st-expenses').value, expenseItems()) };
   state.entries = state.entries.map((entry) => { const nextExpenses = {}; expenseItems().forEach((item) => { nextExpenses[item.id] = num(entry.expenses?.[item.id]); }); return { ...entry, expenses: nextExpenses }; });
   saveState(); renderAll(); showSaveFeedback('設定を保存しました');
@@ -589,7 +603,7 @@ function bindEvents() {
   document.getElementById('save-settings-btn').addEventListener('click', saveSettings);
   document.getElementById('add-company-btn')?.addEventListener('click', addCompanyPreset);
   document.getElementById('add-expense-btn')?.addEventListener('click', () => addSettingListItem('st-expenses', 'st-expense-new'));
-  ['st-company-new'].forEach((id) => document.getElementById(id)?.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); addCompanyPreset(); } }));
+  ['st-company-new', 'st-company-day-new', 'st-company-night-new', 'st-company-ot-new'].forEach((id) => document.getElementById(id)?.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); addCompanyPreset(); } }));
   document.getElementById('st-expense-new')?.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); addSettingListItem('st-expenses', 'st-expense-new'); } });
   document.getElementById('save-google-settings-btn')?.addEventListener('click', saveGoogleSettings);
   document.getElementById('google-export-month-btn')?.addEventListener('click', exportMonthCalendarIcs);
@@ -628,7 +642,7 @@ function bindEvents() {
     const editButton = event.target.closest('[data-edit-entry]'); if (editButton) { closeDayModal(); openModal('self', editButton.dataset.editEntry); return; }
     const delButton = event.target.closest('[data-del-entry]'); if (delButton) { if (confirm('この予定を削除しますか？')) deleteEntry(delButton.dataset.delEntry); return; }
     const companySelect = event.target.closest('#f-company-select');
-    if (companySelect) { const input = document.getElementById('f-company'); if (input && companySelect.value) input.value = companySelect.value; return; }
+    if (companySelect) { const input = document.getElementById('f-company'); if (input && companySelect.value) { input.value = companySelect.value; applyCompanyRate(companySelect.value); } return; }
     const applyReceipt = event.target.closest('[data-apply-receipt]');
     if (applyReceipt) { applyReceiptToEntry(applyReceipt.dataset.applyReceipt); return; }
     const delReceipt = event.target.closest('[data-del-receipt]');
@@ -651,13 +665,14 @@ function bindEvents() {
   });
 
   document.addEventListener('change', (event) => {
-    if (event.target.id === 'f-company-select') { const input = document.getElementById('f-company'); if (input && event.target.value) input.value = event.target.value; return; }
+    if (event.target.id === 'f-company-select') { const input = document.getElementById('f-company'); if (input && event.target.value) { input.value = event.target.value; applyCompanyRate(event.target.value); } return; }
     if (event.target.matches('[data-receipt-category]')) { updateReceiptField(event.target.dataset.receiptCategory, { category: event.target.value, status: '確認済み' }); renderAll(); return; }
     if (event.target.matches('[data-receipt-date]')) { updateReceiptField(event.target.dataset.receiptDate, { date: event.target.value, status: '確認済み' }); return; }
     if (event.target.matches('[data-receipt-amount]')) { updateReceiptField(event.target.dataset.receiptAmount, { amount: num(event.target.value), status: '確認済み' }); return; }
     if (event.target.id === 'f-company') {
       const select = document.getElementById('f-company-select'); if (select) select.value = companyOptions().includes(event.target.value.trim()) ? event.target.value.trim() : '';
     }
+    if (event.target.id === 'f-shift') applyCompanyRate(document.getElementById('f-company')?.value.trim());
   });
 
   document.addEventListener('submit', (event) => {

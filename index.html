@@ -103,12 +103,15 @@
     <div class="top-menu hidden top-menu-clone"></div>
   </div>
 
-  <div class="sec-hd">登録会社</div>
+  <div class="sec-hd">登録会社・単価</div>
   <div class="st-section wide-section">
     <div class="field pad-field">
-      <label>会社名</label>
+      <label>会社名と単価</label>
       <div class="company-rate-add">
         <input id="st-company-new" class="st-input" placeholder="会社名を入力">
+        <input id="st-company-day-new" class="st-input" type="number" inputmode="numeric" placeholder="日勤単価">
+        <input id="st-company-night-new" class="st-input" type="number" inputmode="numeric" placeholder="夜勤単価">
+        <input id="st-company-ot-new" class="st-input" type="number" inputmode="numeric" placeholder="残業単価">
         <button class="mini-add-btn" type="button" id="add-company-btn">追加</button>
       </div>
       <div class="company-rate-list" id="st-company-list"></div>
