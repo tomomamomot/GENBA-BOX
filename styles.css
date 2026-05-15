@@ -127,11 +127,6 @@ input[type="number"]{appearance:textfield;-moz-appearance:textfield}
 .day-mini-actions{display:flex;gap:8px;margin-top:10px}
 .day-mini-btn{border:none;border-radius:10px;background:#eef3fa;color:var(--ink);padding:11px 14px;font-size:15px;font-weight:900}
 .day-mini-btn.del{background:#fff1f1;color:var(--red)}
-.modal-bg{display:flex;opacity:0;pointer-events:none;transition:opacity .18s ease}
-.modal-bg.open{opacity:1;pointer-events:auto}
-.modal{transform:translateY(100%);transition:transform .22s ease}
-.modal-bg.open .modal{transform:translateY(0)}
-.modal.dragging{transition:none}
 #day-entries{padding-bottom:0}
 .sum-grid{padding-top:2px;padding-bottom:16px}
 

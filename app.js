@@ -17,7 +17,6 @@ let selectedDate = toYmd(new Date());
 let selectedCompany = '';
 let activeScreen = 'cal';
 let editingId = null;
-let modalTouch = { startY: 0, currentY: 0, dragging: false };
 let isDayModalOpen = false;
 
 function loadState() {
@@ -386,9 +385,6 @@ function openModal(type, id = null) {
   document.getElementById('modal-bg').classList.add('open');
 }
 function closeModal() {
-  const modal = document.getElementById('entry-modal');
-  modal.classList.remove('dragging');
-  modal.style.transform = '';
   document.getElementById('modal-bg').classList.remove('open');
   editingId = null;
 }
@@ -616,8 +612,6 @@ function bindEvents() {
   document.getElementById('tgl-inv').addEventListener('click', () => { document.getElementById('tgl-inv').classList.toggle('on'); document.getElementById('inv-no-row').classList.toggle('hidden', !document.getElementById('tgl-inv').classList.contains('on')); });
   document.getElementById('tgl-subcontract')?.addEventListener('click', () => document.getElementById('tgl-subcontract').classList.toggle('on'));
   document.getElementById('modal-bg').addEventListener('click', (event) => { if (event.target.id === 'modal-bg') closeModal(); });
-  initModalGesture();
-
   document.addEventListener('click', (event) => {
     const removeCompanyPreset = event.target.closest('[data-remove-company-preset]');
     if (removeCompanyPreset) { const values = companyPresetValues().filter((_, index) => index !== Number(removeCompanyPreset.dataset.removeCompanyPreset)); writeCompanyPresetValues(values); renderCompanyPresetList(); return; }
@@ -682,33 +676,6 @@ function bindEvents() {
   });
 }
 
-function initModalGesture() {
-  const modal = document.getElementById('entry-modal');
-  const handleStart = (y) => { modalTouch.startY = y; modalTouch.currentY = y; modalTouch.dragging = true; modal.classList.add('dragging'); };
-  const handleMove = (y) => {
-    if (!modalTouch.dragging) return;
-    modalTouch.currentY = y;
-    const diff = Math.max(0, y - modalTouch.startY);
-    modal.style.transform = `translateY(${diff}px)`;
-  };
-  const handleEnd = () => {
-    if (!modalTouch.dragging) return;
-    const diff = modalTouch.currentY - modalTouch.startY;
-    modalTouch.dragging = false;
-    modal.classList.remove('dragging');
-    if (diff > 120) {
-      closeModal();
-    } else {
-      modal.style.transform = '';
-    }
-  };
-  modal.addEventListener('touchstart', (event) => handleStart(event.touches[0].clientY), { passive: true });
-  modal.addEventListener('touchmove', (event) => handleMove(event.touches[0].clientY), { passive: true });
-  modal.addEventListener('touchend', handleEnd);
-  modal.addEventListener('pointerdown', (event) => { if (event.pointerType !== 'mouse') handleStart(event.clientY); });
-  modal.addEventListener('pointermove', (event) => { if (modalTouch.dragging && event.pointerType !== 'mouse') handleMove(event.clientY); });
-  modal.addEventListener('pointerup', handleEnd);
-}
 function registerPwa() { if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch((error) => console.warn('sw failed', error)); }
 function init() { bindEvents(); renderAll(); registerPwa(); }
 document.addEventListener('DOMContentLoaded', init);
