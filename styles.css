@@ -5,15 +5,15 @@
   --accent:#1a4fa0;--accent-soft:#e7f0ff;--day:#f2c94c;--day-ink:#4c3600;--night:#6f42c1;--night-soft:#f1e8ff;--trip:#1d8b5c;--subc:#d18b1e;--red:#d64545;
   --safe-top:env(safe-area-inset-top,0px);--safe-bot:env(safe-area-inset-bottom,0px);--shadow:0 10px 28px rgba(15,23,42,.08)
 }
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Hiragino Sans','Yu Gothic UI',sans-serif;background:var(--bg);color:var(--ink);font-size:18px;max-width:430px;margin:0 auto;overflow-x:hidden}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Hiragino Sans','Yu Gothic UI',sans-serif;background:var(--bg);color:var(--ink);font-size:17px;max-width:430px;margin:0 auto;overflow-x:hidden}
 button,input,select,textarea{font:inherit}
 button{cursor:pointer}
 .screen{display:none;min-height:100dvh;padding-bottom:calc(82px + var(--safe-bot))}
 .screen.active{display:block}
 .topbar{background:linear-gradient(180deg,#1d579f,#18457f);color:#fff;padding:calc(14px + var(--safe-top)) 16px 12px;position:sticky;top:0;z-index:60}
 .topbar-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.topbar-title{font-size:25px;font-weight:800;letter-spacing:.02em}
-.topbar-sub{font-size:16px;opacity:.9;margin-top:4px}
+.topbar-title{font-size:23px;font-weight:800;letter-spacing:.02em}
+.topbar-sub{font-size:14px;opacity:.9;margin-top:4px}
 .ghost-btn{border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.12);color:#fff;border-radius:999px;padding:9px 12px;font-size:13px;font-weight:700;white-space:nowrap}
 .month-nav{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:84px;z-index:40}
 .month-nav button{width:40px;height:40px;border:none;border-radius:12px;background:var(--accent-soft);color:var(--accent);font-size:21px;font-weight:800}
@@ -122,8 +122,8 @@ input[type="number"]{appearance:textfield;-moz-appearance:textfield}
 .day-mini-list{display:grid;gap:10px}
 .day-mini-card{border:1px solid var(--line);border-left:8px solid var(--line);border-radius:14px;padding:14px;background:#fbfdff}.day-mini-card.day{border-left-color:var(--day);background:#fffaf0}.day-mini-card.night{border-left-color:var(--night);background:#fbf7ff}.day-mini-card.trip{border-left-color:var(--trip)}
 .day-mini-row{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
-.day-mini-title,.day-mini-site{font-size:21px;font-weight:900;line-height:1.35}
-.day-mini-sub,.day-mini-company{margin-top:5px;font-size:15px;color:var(--sub);line-height:1.55;font-weight:800}
+.day-mini-title,.day-mini-site{font-size:18px;font-weight:900;line-height:1.35}
+.day-mini-sub,.day-mini-company{margin-top:4px;font-size:14px;color:var(--sub);line-height:1.5;font-weight:800}
 .day-mini-actions{display:flex;gap:8px;margin-top:10px}
 .day-mini-btn{border:none;border-radius:10px;background:#eef3fa;color:var(--ink);padding:11px 14px;font-size:15px;font-weight:900}
 .day-mini-btn.del{background:#fff1f1;color:var(--red)}
@@ -169,33 +169,33 @@ input[type="number"]{appearance:textfield;-moz-appearance:textfield}
 @media (max-width:720px){.receipt-card{grid-template-columns:minmax(0,1fr) 38px}.receipt-main,.receipt-fields,.receipt-select,.receipt-apply{grid-column:1/-1}.receipt-del{grid-column:2;grid-row:1}.sync-actions.two{grid-template-columns:1fr}}
 
 @media (max-width:480px){
-  body{font-size:19px;max-width:430px;background:#edf2f7}
+  body{font-size:17px;max-width:430px;background:#edf2f7}
   .screen{padding-bottom:calc(78px + var(--safe-bot))}
   .topbar{padding:calc(12px + var(--safe-top)) 14px 10px}
-  .topbar-title{font-size:26px}
-  .topbar-sub{font-size:15px}
+  .topbar-title{font-size:22px}
+  .topbar-sub{font-size:13px}
   .month-nav{top:77px;padding:12px 16px;background:#fff}
   .month-nav button{width:46px;height:40px;border-radius:20px;background:#f0f3f7;color:#4b5563;font-size:31px;line-height:1}
-  .month-label{font-size:34px;font-weight:900;letter-spacing:0}
+  .month-label{font-size:28px;font-weight:900;letter-spacing:0}
   .cal-grid{grid-template-columns:repeat(7,minmax(0,1fr));gap:0;padding:0 8px 12px;background:#fff;border-top:1px solid #e3e7ec;border-bottom:1px solid var(--line)}
-  .cal-dow{height:32px;padding:5px 0 3px;border-right:1px solid #e3e7ec;color:#5f6368;font-size:18px;font-weight:900}
+  .cal-dow{height:28px;padding:4px 0 3px;border-right:1px solid #e3e7ec;color:#5f6368;font-size:15px;font-weight:900}
   .cal-dow:nth-child(7){border-right:none}
   .cal-day{min-width:0;min-height:112px;border-radius:0;border-right:1px solid #e3e7ec;border-bottom:1px solid #e3e7ec;background:#f8fafc;padding:3px 3px 4px;gap:3px}
   .cal-day:nth-child(7n){border-right:none}
   .cal-day.other{opacity:1;background:#f2f4f7}
   .cal-day.other .dn{color:#69717c}
   .cal-day.sel{background:#eef5ff;box-shadow:inset 0 0 0 2px #9dc2ff}
-  .dn{width:100%;height:26px;margin:0 0 1px;border-radius:0;font-size:22px;font-weight:800;line-height:1;align-items:flex-start}
-  .cal-day.today .dn{width:30px;height:30px;margin:0 auto;border-radius:50%;align-items:center}
+  .dn{width:100%;height:22px;margin:0 0 1px;border-radius:0;font-size:18px;font-weight:800;line-height:1;align-items:flex-start}
+  .cal-day.today .dn{width:26px;height:26px;margin:0 auto;border-radius:50%;align-items:center}
   .task-stack{gap:3px;min-height:0}
-  .cal-task{border-radius:5px;padding:3px 5px;font-size:12.5px;line-height:1.12;font-weight:800;display:block;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;word-break:normal;min-height:19px}
+  .cal-task{border-radius:5px;padding:3px 4px;font-size:11.5px;line-height:1.1;font-weight:800;display:block;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;word-break:normal;min-height:17px}
   .cal-task.day{background:#ffd166;color:#2f2500}
   .cal-task.night{background:#7467c9;color:#fff}
   .cal-task.trip{background:#5bb89b;color:#fff}
   .more-chip{height:18px;text-align:left;padding-left:4px;font-size:18px;line-height:.7;color:#5f6368}
   .sum-grid{padding:9px 10px 14px;gap:7px}
-  .sum-card{border-radius:10px;padding:10px 11px;min-height:68px}
-  .sl{font-size:12px}.sv{font-size:22px}
+  .sum-card{border-radius:10px;padding:9px 10px;min-height:62px}
+  .sl{font-size:11px}.sv{font-size:20px}
   .company-combo{grid-template-columns:108px minmax(0,1fr)}
   .fab{right:16px;bottom:calc(82px + var(--safe-bot));width:58px;height:58px}
 }
