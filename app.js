@@ -202,9 +202,20 @@ function renderSummary() {
   const yearSelfEntries = yearEntries().filter((entry) => entry.type === 'self');
   const monthQty = sumBy(selfEntries, (entry) => calcEntry(entry).qty);
   const yearQty = sumBy(yearSelfEntries, (entry) => calcEntry(entry).qty);
+  const monthLaborAmount = sumBy(selfEntries, (entry) => {
+    const calc = calcEntry(entry);
+    return calc.labor + calc.overtime;
+  });
+  const yearLaborAmount = sumBy(yearSelfEntries, (entry) => {
+    const calc = calcEntry(entry);
+    return calc.labor + calc.overtime;
+  });
+  const hidden = !state.settings.showSales;
   document.getElementById('sum-grid').innerHTML = `
     <div class="sum-card"><div class="sl">今月の人工</div><div class="sv green">${monthQty.toLocaleString('ja-JP')}</div></div>
-    <div class="sum-card"><div class="sl">${cursor.getFullYear()}年の人工</div><div class="sv green">${yearQty.toLocaleString('ja-JP')}</div></div>`;
+    <div class="sum-card"><div class="sl">今月の人工額</div><div class="sv ${hidden ? 'hidden-amount' : ''}">${yen(monthLaborAmount, hidden)}</div></div>
+    <div class="sum-card"><div class="sl">${cursor.getFullYear()}年の人工</div><div class="sv green">${yearQty.toLocaleString('ja-JP')}</div></div>
+    <div class="sum-card"><div class="sl">${cursor.getFullYear()}年の人工額</div><div class="sv ${hidden ? 'hidden-amount' : ''}">${yen(yearLaborAmount, hidden)}</div></div>`;
 }
 function renderDayEntries() {
   const legacy = document.getElementById('day-entries');
@@ -312,7 +323,7 @@ function openModal(type, id = null) {
   const expenseFields = expenseItems().map((item) => `<div class="field"><label>${escapeHtml(item.label)}</label><input type="number" min="0" step="1" data-expense-id="${item.id}" value="${num(entry.expenses?.[item.id]) || ''}"></div>`).join('');
   const typeButtons = `<button class="type-btn ${entry.type === 'self' ? 'active' : ''}" data-entry-type="self" type="button">自分</button>${subcontractEnabled() || entry.type === 'sub' ? `<button class="type-btn ${entry.type === 'sub' ? 'active' : ''}" data-entry-type="sub" type="button">外注職人</button>` : ''}`;
   document.getElementById('modal-title').textContent = id ? '予定を編集' : '予定を追加';
-  document.getElementById('modal-body').innerHTML = `<div class="type-sel">${typeButtons}</div><form id="entry-form"><div class="field"><label>日付</label><input id="f-date" type="date" value="${escapeHtml(entry.date)}"></div>${isSub ? `<div class="field" id="worker-wrap"><label>職人名</label><input id="f-worker" value="${escapeHtml(entry.workerName)}" placeholder="佐藤大工"></div>` : `<div class="field hidden" id="worker-wrap"><label>職人名</label><input id="f-worker" value="${escapeHtml(entry.workerName)}"></div>`}<div class="field"><label>会社名</label><input id="f-company" value="${escapeHtml(entry.company)}" placeholder="空欄でも保存できます"></div><div class="field"><label>現場名</label><input id="f-site" value="${escapeHtml(entry.site)}" placeholder="空欄でも保存できます"></div><div class="field-r2"><div class="field"><label>勤務区分</label><select id="f-shift"><option value="day" ${entry.shift === 'day' ? 'selected' : ''}>日勤</option><option value="night" ${entry.shift === 'night' ? 'selected' : ''}>夜勤</option><option value="trip" ${entry.shift === 'trip' ? 'selected' : ''}>出張</option></select></div><div class="field"><label>人工</label><input id="f-qty" type="number" min="0" step="0.5" value="${entry.qty}"></div></div><div class="field-r3"><div class="field"><label>単価</label><input id="f-rate" type="number" min="0" step="1" value="${rateFieldValue(entry.unitRate)}"></div><div class="field"><label>残業時間</label><input id="f-ot-hours" type="number" min="0" step="0.5" value="${num(entry.otHours) || ''}"></div><div class="field"><label>残業単価</label><input id="f-ot-rate" type="number" min="0" step="1" value="${rateFieldValue(entry.otRate)}"></div></div><div class="sec-hd" style="padding:0 0 8px">経費</div><div class="field-r2">${expenseFields}</div><div class="field"><label>メモ</label><textarea id="f-notes" placeholder="注意点やメモ">${escapeHtml(entry.notes)}</textarea></div><div class="btn-row"><button class="btn-secondary" type="button" id="cancel-entry-btn">キャンセル</button><button class="btn-primary" type="submit">保存</button></div></form>`;
+  document.getElementById('modal-body').innerHTML = `<div class="type-sel">${typeButtons}</div><form id="entry-form"><div class="field-r2"><div class="field"><label>開始日</label><input id="f-date" type="date" value="${escapeHtml(entry.date)}"></div><div class="field"><label>終了日</label><input id="f-end-date" type="date" value="${escapeHtml(entry.date)}"></div></div>${isSub ? `<div class="field" id="worker-wrap"><label>職人名</label><input id="f-worker" value="${escapeHtml(entry.workerName)}" placeholder="佐藤大工"></div>` : `<div class="field hidden" id="worker-wrap"><label>職人名</label><input id="f-worker" value="${escapeHtml(entry.workerName)}"></div>`}<div class="field"><label>会社名</label><input id="f-company" value="${escapeHtml(entry.company)}" placeholder="空欄でも保存できます"></div><div class="field"><label>現場名</label><input id="f-site" value="${escapeHtml(entry.site)}" placeholder="空欄でも保存できます"></div><div class="field-r2"><div class="field"><label>勤務区分</label><select id="f-shift"><option value="day" ${entry.shift === 'day' ? 'selected' : ''}>日勤</option><option value="night" ${entry.shift === 'night' ? 'selected' : ''}>夜勤</option><option value="trip" ${entry.shift === 'trip' ? 'selected' : ''}>出張</option></select></div><div class="field"><label>人工</label><input id="f-qty" type="number" min="0" step="0.5" value="${entry.qty}"></div></div><div class="field-r3"><div class="field"><label>単価</label><input id="f-rate" type="number" min="0" step="1" value="${rateFieldValue(entry.unitRate)}"></div><div class="field"><label>残業時間</label><input id="f-ot-hours" type="number" min="0" step="0.5" value="${num(entry.otHours) || ''}"></div><div class="field"><label>残業単価</label><input id="f-ot-rate" type="number" min="0" step="1" value="${rateFieldValue(entry.otRate)}"></div></div><div class="sec-hd" style="padding:0 0 8px">経費</div><div class="field-r2">${expenseFields}</div><div class="field"><label>メモ</label><textarea id="f-notes" placeholder="注意点やメモ">${escapeHtml(entry.notes)}</textarea></div><div class="btn-row"><button class="btn-secondary" type="button" id="cancel-entry-btn">キャンセル</button><button class="btn-primary" type="submit">保存</button></div></form>`;
   document.getElementById('modal-bg').classList.add('open');
 }
 function closeModal() {
@@ -324,20 +335,38 @@ function closeModal() {
 }
 function collectEntryForm() {
   const type = document.querySelector('[data-entry-type].active')?.dataset.entryType || 'self';
-  const entry = {
-    id: editingId || crypto.randomUUID(), date: document.getElementById('f-date').value, type, shift: document.getElementById('f-shift').value,
+  const startDate = document.getElementById('f-date').value;
+  const endDate = document.getElementById('f-end-date')?.value || startDate;
+  if (!startDate) throw new Error('開始日を入力してください');
+  if (fromYmd(endDate) < fromYmd(startDate)) throw new Error('終了日は開始日以降にしてください');
+  const createdAt = editingId ? (state.entries.find((item) => item.id === editingId)?.createdAt || new Date().toISOString()) : new Date().toISOString();
+  const base = {
+    type, shift: document.getElementById('f-shift').value,
     company: document.getElementById('f-company').value.trim(), site: document.getElementById('f-site').value.trim(), workerName: document.getElementById('f-worker').value.trim(),
     qty: num(document.getElementById('f-qty').value), unitRate: num(document.getElementById('f-rate').value), otHours: num(document.getElementById('f-ot-hours').value), otRate: num(document.getElementById('f-ot-rate').value),
-    expenses: {}, notes: document.getElementById('f-notes').value.trim(), invoiceMode: 'with', createdAt: editingId ? (state.entries.find((item) => item.id === editingId)?.createdAt || new Date().toISOString()) : new Date().toISOString(), updatedAt: new Date().toISOString()
+    expenses: {}, notes: document.getElementById('f-notes').value.trim(), invoiceMode: 'with', createdAt, updatedAt: new Date().toISOString()
   };
-  document.querySelectorAll('[data-expense-id]').forEach((input) => { entry.expenses[input.dataset.expenseId] = num(input.value); });
-  if (!entry.date) throw new Error('日付を入力してください');
-  return entry;
+  document.querySelectorAll('[data-expense-id]').forEach((input) => { base.expenses[input.dataset.expenseId] = num(input.value); });
+  const dates = [];
+  const current = fromYmd(startDate), last = fromYmd(endDate);
+  while (current <= last) {
+    dates.push(toYmd(current));
+    current.setDate(current.getDate() + 1);
+  }
+  return dates.map((date, index) => ({ ...base, id: editingId && index === 0 ? editingId : crypto.randomUUID(), date, expenses: { ...base.expenses } }));
 }
 function upsertEntry(entry) {
   state.entries = state.entries.filter((item) => item.id !== entry.id);
   state.entries.push(entry);
   selectedDate = entry.date; cursor = startOfMonth(fromYmd(entry.date));
+  saveState(); renderAll();
+}
+function upsertEntries(entries) {
+  const ids = new Set(entries.map((entry) => entry.id));
+  state.entries = state.entries.filter((item) => !ids.has(item.id));
+  state.entries.push(...entries);
+  selectedDate = entries[0].date;
+  cursor = startOfMonth(fromYmd(entries[0].date));
   saveState(); renderAll();
 }
 function saveGoogleSettings() {
@@ -464,7 +493,7 @@ function bindEvents() {
   document.addEventListener('submit', (event) => {
     if (event.target.id !== 'entry-form') return;
     event.preventDefault();
-    try { const entry = collectEntryForm(); upsertEntry(entry); closeModal(); } catch (error) { alert(error.message || '保存に失敗しました'); }
+    try { const entries = collectEntryForm(); upsertEntries(entries); closeModal(); } catch (error) { alert(error.message || '保存に失敗しました'); }
   });
 }
 
