@@ -232,8 +232,8 @@ function renderCalendar() {
     if (ymd === selectedDate) classes.push('sel');
     if (ymd === toYmd(new Date())) classes.push('today');
     if (date.getDay() === 0) classes.push('sun'); if (date.getDay() === 6) classes.push('sat');
-    const lines = items.slice(0, 2).map((entry) => `<div class="cal-task ${shiftClass(entry.shift)} ${entry.type === 'sub' ? 'sub' : ''}">${escapeHtml(companyEventTitle(entry))}</div>`).join('');
-    const more = items.length > 2 ? `<div class="more-chip">+${items.length - 2}</div>` : '';
+    const lines = items.slice(0, 3).map((entry) => `<div class="cal-task ${shiftClass(entry.shift)} ${entry.type === 'sub' ? 'sub' : ''}">${escapeHtml(companyEventTitle(entry))}</div>`).join('');
+    const more = items.length > 3 ? `<div class="more-chip">•••</div>` : '';
     rows.push(`<button class="${classes.join(' ')}" data-date="${ymd}"><span class="dn">${date.getDate()}</span><div class="task-stack">${lines}</div>${more}</button>`);
   }
   grid.innerHTML = rows.join('');
