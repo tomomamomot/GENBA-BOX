@@ -1,5 +1,5 @@
-const CACHE = 'genba-box-v15';
-const ASSETS = ['./', './index.html', './styles.css?v=15', './app.js?v=15', './manifest.json?v=15', './icon-192.png', './icon-512.png'];
+const CACHE = 'genba-box-v16';
+const ASSETS = ['./', './index.html', './styles.css?v=16', './app.js?v=16', './manifest.json?v=16', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

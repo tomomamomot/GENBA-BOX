@@ -186,6 +186,17 @@ function getInvoiceCompanies() { return [...new Set(monthEntries().filter((entry
 function companyInvoiceMode(company) { return state.settings.companyInvoiceModes?.[company] || 'with'; }
 function setCompanyInvoiceMode(company, mode) { state.settings.companyInvoiceModes[company] = mode; saveState(); }
 function companyEventTitle(entry) { return [entry.company, entry.site].filter(Boolean).join(' / ') || '現場予定'; }
+function adjacentYmd(ymd, offset) { const d = fromYmd(ymd); d.setDate(d.getDate() + offset); return toYmd(d); }
+function hasAdjacentCompany(ymd, entry) {
+  if (!entry.company) return false;
+  return dayEntries(ymd).some((item) => item.company === entry.company && item.shift === entry.shift);
+}
+function calendarTaskClass(entry, ymd, dayOfWeek) {
+  const classes = ['cal-task', shiftClass(entry.shift), entry.type === 'sub' ? 'sub' : ''];
+  if (dayOfWeek !== 0 && hasAdjacentCompany(adjacentYmd(ymd, -1), entry)) classes.push('cont-left');
+  if (dayOfWeek !== 6 && hasAdjacentCompany(adjacentYmd(ymd, 1), entry)) classes.push('cont-right');
+  return classes.filter(Boolean).join(' ');
+}
 
 function renderAll() { renderNav(); renderHeaders(); renderCalendar(); renderDayEntries(); renderSubScreen(); renderInvoiceScreen(); renderSettings(); renderSyncScreen(); renderReceiptScreen(); }
 function renderNav() {
@@ -231,7 +242,8 @@ function renderCalendar() {
     if (ymd === selectedDate) classes.push('sel');
     if (ymd === toYmd(new Date())) classes.push('today');
     if (date.getDay() === 0) classes.push('sun'); if (date.getDay() === 6) classes.push('sat');
-    const lines = items.slice(0, 4).map((entry) => `<div class="cal-task ${shiftClass(entry.shift)} ${entry.type === 'sub' ? 'sub' : ''}">${escapeHtml(companyEventTitle(entry))}</div>`).join('');
+    const displayedItems = [...items].sort((a, b) => companyEventTitle(a).localeCompare(companyEventTitle(b), 'ja') || String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+    const lines = displayedItems.slice(0, 4).map((entry) => `<div class="${calendarTaskClass(entry, ymd, date.getDay())}">${escapeHtml(companyEventTitle(entry))}</div>`).join('');
     const more = items.length > 4 ? `<div class="more-chip">•••</div>` : '';
     rows.push(`<button class="${classes.join(' ')}" data-date="${ymd}"><span class="dn">${date.getDate()}</span><div class="task-stack">${lines}</div>${more}</button>`);
   }
@@ -381,7 +393,7 @@ function openModal(type, id = null) {
   const companyOptionsHtml = companyChoices.map((name) => `<option value="${escapeHtml(name)}" ${name === entry.company ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('');
   const companyPickBlock = `<div class="company-combo"><select id="f-company-select"><option value="">選択</option>${companyOptionsHtml}</select><input id="f-company" value="${escapeHtml(entry.company)}" placeholder="自由入力できます"></div>`;
   document.getElementById('modal-title').textContent = id ? '予定を編集' : '予定を追加';
-  document.getElementById('modal-body').innerHTML = `<div class="type-sel">${typeButtons}</div><form id="entry-form"><div class="field-r2"><div class="field"><label>開始日</label><input id="f-date" type="date" value="${escapeHtml(entry.date)}"></div><div class="field"><label>終了日</label><input id="f-end-date" type="date" value="${escapeHtml(entry.date)}"></div></div>${isSub ? `<div class="field" id="worker-wrap"><label>職人名</label><input id="f-worker" value="${escapeHtml(entry.workerName)}" placeholder="佐藤大工"></div>` : `<div class="field hidden" id="worker-wrap"><label>職人名</label><input id="f-worker" value="${escapeHtml(entry.workerName)}"></div>`}<div class="field"><label>会社名</label>${companyPickBlock}</div><div class="field"><label>現場名</label><input id="f-site" value="${escapeHtml(entry.site)}" placeholder="空欄でも保存できます"></div><div class="field-r2"><div class="field"><label>勤務区分</label><select id="f-shift"><option value="day" ${entry.shift === 'day' ? 'selected' : ''}>日勤</option><option value="night" ${entry.shift === 'night' ? 'selected' : ''}>夜勤</option><option value="trip" ${entry.shift === 'trip' ? 'selected' : ''}>出張</option></select></div><div class="field"><label>人工</label><input id="f-qty" type="number" min="0" step="0.5" value="${entry.qty}"></div></div><div class="field-r3"><div class="field"><label>単価</label><input id="f-rate" type="number" min="0" step="1" value="${rateFieldValue(entry.unitRate)}"></div><div class="field"><label>残業時間</label><input id="f-ot-hours" type="number" min="0" step="0.5" value="${num(entry.otHours) || ''}"></div><div class="field"><label>残業単価</label><input id="f-ot-rate" type="number" min="0" step="1" value="${rateFieldValue(entry.otRate)}"></div></div><div class="sec-hd" style="padding:0 0 8px">経費</div><div class="field-r2">${expenseFields}</div><div class="field"><label>メモ</label><textarea id="f-notes" placeholder="注意点やメモ">${escapeHtml(entry.notes)}</textarea></div><div class="btn-row"><button class="btn-secondary" type="button" id="cancel-entry-btn">キャンセル</button><button class="btn-primary" type="submit">保存</button></div></form>`;
+  document.getElementById('modal-body').innerHTML = `<div class="type-sel">${typeButtons}</div><form id="entry-form"><div class="field-r2"><div class="field"><label>開始日</label><input id="f-date" type="date" value="${escapeHtml(entry.date)}"></div><div class="field"><label>終了日</label><input id="f-end-date" type="date" value="${escapeHtml(entry.date)}"></div></div>${isSub ? `<div class="field" id="worker-wrap"><label>職人名</label><input id="f-worker" value="${escapeHtml(entry.workerName)}" placeholder="佐藤大工"></div>` : `<div class="field hidden" id="worker-wrap"><label>職人名</label><input id="f-worker" value="${escapeHtml(entry.workerName)}"></div>`}<div class="field"><label>会社名</label>${companyPickBlock}</div><div class="field"><label>現場名</label><input id="f-site" value="${escapeHtml(entry.site)}" placeholder="空欄でも保存できます"></div><div class="field-r2"><div class="field"><label>勤務区分</label><select id="f-shift"><option value="day" ${entry.shift === 'day' ? 'selected' : ''}>日勤</option><option value="night" ${entry.shift === 'night' ? 'selected' : ''}>夜勤</option><option value="trip" ${entry.shift === 'trip' ? 'selected' : ''}>出張</option></select></div><div class="field"><label>人工</label><input id="f-qty" type="number" min="0" step="0.5" value="${entry.qty}"></div></div><div class="field-r3"><div class="field"><label>単価</label><input id="f-rate" type="number" min="0" step="1" value="${rateFieldValue(entry.unitRate)}"></div><div class="field"><label>残業時間</label><input id="f-ot-hours" type="number" min="0" step="0.5" value="${num(entry.otHours) || ''}"></div><div class="field"><label>残業単価</label><input id="f-ot-rate" type="number" min="0" step="1" value="${rateFieldValue(entry.otRate)}"></div></div><div class="sec-hd" style="padding:0 0 8px">経費</div><div class="field-r2">${expenseFields}</div><div class="field"><label>メモ</label><textarea id="f-notes" placeholder="注意点やメモ">${escapeHtml(entry.notes)}</textarea></div><div class="btn-row entry-actions"><button class="btn-secondary" type="button" id="cancel-entry-btn">キャンセル</button><button class="btn-primary" type="submit">保存</button></div></form>`;
   document.getElementById('modal-bg').classList.add('open');
 }
 function closeModal() {
