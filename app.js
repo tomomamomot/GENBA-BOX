@@ -6,7 +6,7 @@ const DEFAULT_SETTINGS = {
   name: '', address: '', tel: '', companyName: '', bank: '', branch: '', accountNo: '', accountName: '',
   invoiceNo: '', invoiceEnabled: true, taxRate: 10,
   defaultDayRate: 0, defaultNightRate: 0, defaultOtRate: 0,
-  companies: [], expenseItems: DEFAULT_EXPENSE_ITEMS.map((label, index) => ({ id: `exp${index + 1}`, label })),
+  companies: [], companyRates: [], expenseItems: DEFAULT_EXPENSE_ITEMS.map((label, index) => ({ id: `exp${index + 1}`, label })),
   companyInvoiceModes: {}, showSales: true, showSubcontract: true, googleClientId: '', googleCalendarId: 'primary', googleStoreMode: 'local', googleAccountEmail: '', googleSyncEnabled: false,
 };
 const DEFAULT_STATE = { entries: [], receipts: [], settings: DEFAULT_SETTINGS };
@@ -46,6 +46,15 @@ function normalizeExpenseItems(items) {
   const mapped = list.map((item, index) => typeof item === 'string' ? { id: `exp${index + 1}`, label: item } : { id: item.id || `exp${index + 1}`, label: item.label || `項目${index + 1}` }).filter((item) => item.label.trim());
   return mapped.length ? mapped : clone(DEFAULT_SETTINGS.expenseItems);
 }
+function normalizeCompanyRates(items, companies = []) {
+  const source = Array.isArray(items) ? items : [];
+  const mapped = source.map((item) => {
+    if (typeof item === 'string') return { id: crypto.randomUUID(), name: item, dayRate: 0, nightRate: 0, otRate: 0 };
+    return { id: String(item.id || crypto.randomUUID()), name: String(item.name || item.company || '').trim(), dayRate: num(item.dayRate), nightRate: num(item.nightRate), otRate: num(item.otRate) };
+  }).filter((item) => item.name);
+  companies.filter(Boolean).forEach((name) => { if (!mapped.some((item) => item.name === name)) mapped.push({ id: crypto.randomUUID(), name, dayRate: 0, nightRate: 0, otRate: 0 }); });
+  return mapped;
+}
 function normalizeReceipt(receipt) {
   return {
     id: String(receipt.id || crypto.randomUUID()), fileName: receipt.fileName || '領収書', importedAt: receipt.importedAt || new Date().toISOString(),
@@ -71,6 +80,7 @@ function migrateLegacy(oldData) {
     invoiceNo: oldSettings.invno || '', invoiceEnabled: oldSettings.showInv !== false, taxRate: num(oldSettings.taxRate || 10),
     defaultDayRate: num(oldSettings.tanka || 0), defaultNightRate: num(oldSettings.ntanka || 0), defaultOtRate: num(oldSettings.ottanka || 0),
     companies: [...new Set((oldData.entries || []).map((entry) => entry.co).filter(Boolean))],
+    companyRates: [...new Set((oldData.entries || []).map((entry) => entry.co).filter(Boolean))].map((name) => ({ id: crypto.randomUUID(), name, dayRate: num(oldSettings.tanka || 0), nightRate: num(oldSettings.ntanka || 0), otRate: num(oldSettings.ottanka || 0) })),
   };
   migrated.entries = (oldData.entries || []).map((entry) => ({
     id: String(entry.id || crypto.randomUUID()), date: toYmd(new Date(entry.y, entry.m, entry.d)), type: entry.type || 'self',
@@ -95,7 +105,10 @@ function fmtMonth(date) { return `${date.getFullYear()}年${date.getMonth() + 1}
 function fmtDateJP(ymd) { const d = fromYmd(ymd); return `${d.getMonth() + 1}月${d.getDate()}日`; }
 function weekdayLabel(ymd) { return ['日', '月', '火', '水', '木', '金', '土'][fromYmd(ymd).getDay()]; }
 function expenseItems() { return normalizeExpenseItems(state.settings.expenseItems); }
-function companyOptions() { return [...new Set([...state.settings.companies, ...state.entries.map((entry) => entry.company).filter(Boolean)])].sort((a, b) => a.localeCompare(b, 'ja')); }
+function companyOptions() { return [...new Set([...companyPresets().map((item) => item.name), ...state.settings.companies, ...state.entries.map((entry) => entry.company).filter(Boolean)])].sort((a, b) => a.localeCompare(b, 'ja')); }
+function companyPresets() { return normalizeCompanyRates(state.settings.companyRates, state.settings.companies); }
+function companyPresetByName(name) { return companyPresets().find((item) => item.name === name); }
+function rateForPresetShift(preset, shift) { if (!preset) return 0; return shift === 'night' ? num(preset.nightRate) : num(preset.dayRate); }
 function subcontractEnabled() { return state.settings.showSubcontract !== false; }
 function yearEntries() { const year = cursor.getFullYear(); return state.entries.filter((entry) => fromYmd(entry.date).getFullYear() === year); }
 function sumBy(entries, selector) { return entries.reduce((sum, entry) => sum + selector(entry), 0); }
@@ -107,7 +120,36 @@ function renderEditableList(listId, hiddenId) {
   const values = settingListValues(hiddenId);
   list.innerHTML = values.length ? values.map((label, index) => `<span class="setting-chip">${escapeHtml(label)}<button type="button" data-remove-setting-item="${hiddenId}" data-remove-index="${index}" aria-label="削除">×</button></span>`).join('') : '<div class="empty-inline">まだ登録がありません</div>';
 }
-function renderSettingListEditors() { renderEditableList('st-company-list', 'st-companies'); renderEditableList('st-expense-list', 'st-expenses'); }
+function companyPresetValues() {
+  try { return normalizeCompanyRates(JSON.parse(document.getElementById('st-company-presets')?.value || '[]')); } catch (error) { return []; }
+}
+function writeCompanyPresetValues(presets) {
+  const normalized = normalizeCompanyRates(presets);
+  const hidden = document.getElementById('st-company-presets'); if (hidden) hidden.value = JSON.stringify(normalized);
+  writeSettingList('st-companies', normalized.map((item) => item.name));
+}
+function companyRateText(preset) {
+  const parts = [];
+  if (num(preset.dayRate)) parts.push(`日 ${yen(preset.dayRate)}`);
+  if (num(preset.nightRate)) parts.push(`夜 ${yen(preset.nightRate)}`);
+  if (num(preset.otRate)) parts.push(`残 ${yen(preset.otRate)}`);
+  return parts.join(' / ') || '単価未設定';
+}
+function renderCompanyPresetList() {
+  const list = document.getElementById('st-company-list'); if (!list) return;
+  const presets = companyPresetValues();
+  list.innerHTML = presets.length ? presets.map((preset, index) => `<div class="company-rate-card"><div><div class="company-rate-name">${escapeHtml(preset.name)}</div><div class="company-rate-meta">${escapeHtml(companyRateText(preset))}</div></div><button type="button" data-remove-company-preset="${index}" aria-label="削除">×</button></div>`).join('') : '<div class="empty-inline">まだ登録がありません</div>';
+}
+function renderSettingListEditors() { renderCompanyPresetList(); renderEditableList('st-expense-list', 'st-expenses'); }
+function addCompanyPreset() {
+  const nameInput = document.getElementById('st-company-new'); if (!nameInput) return;
+  const name = nameInput.value.trim(); if (!name) return;
+  const next = companyPresetValues().filter((item) => item.name !== name);
+  next.push({ id: crypto.randomUUID(), name, dayRate: num(document.getElementById('st-company-day-new')?.value), nightRate: num(document.getElementById('st-company-night-new')?.value), otRate: num(document.getElementById('st-company-ot-new')?.value) });
+  writeCompanyPresetValues(next);
+  ['st-company-new', 'st-company-day-new', 'st-company-night-new', 'st-company-ot-new'].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ''; });
+  renderCompanyPresetList();
+}
 function addSettingListItem(hiddenId, inputId) {
   const input = document.getElementById(inputId); if (!input) return;
   const value = input.value.trim(); if (!value) return;
@@ -316,7 +358,9 @@ function renderSettings() {
   const map = { 'st-name': s.name, 'st-addr': s.address, 'st-tel': s.tel, 'st-co': s.companyName, 'st-bank': s.bank, 'st-branch': s.branch, 'st-accno': s.accountNo, 'st-accname': s.accountName, 'st-invno': s.invoiceNo, 'st-tanka': rateFieldValue(s.defaultDayRate), 'st-ntanka': rateFieldValue(s.defaultNightRate), 'st-ottanka': rateFieldValue(s.defaultOtRate) };
   Object.entries(map).forEach(([id, value]) => { const el = document.getElementById(id); if (el) el.value = value ?? ''; });
   document.getElementById('st-tax').value = String(s.taxRate);
-  document.getElementById('st-companies').value = (s.companies || []).join('\n');
+  const presets = normalizeCompanyRates(s.companyRates, s.companies);
+  document.getElementById('st-companies').value = presets.map((item) => item.name).join('\n');
+  const companyPresetStore = document.getElementById('st-company-presets'); if (companyPresetStore) companyPresetStore.value = JSON.stringify(presets);
   document.getElementById('st-expenses').value = expenseItems().map((item) => item.label).join('\n');
   document.getElementById('tgl-inv').classList.toggle('on', !!s.invoiceEnabled);
   document.getElementById('tgl-subcontract')?.classList.toggle('on', subcontractEnabled());
@@ -334,8 +378,10 @@ function openModal(type, id = null) {
   const isSub = entry.type === 'sub' || type === 'sub';
   const expenseFields = expenseItems().map((item) => `<div class="field"><label>${escapeHtml(item.label)}</label><input type="number" min="0" step="1" data-expense-id="${item.id}" value="${num(entry.expenses?.[item.id]) || ''}"></div>`).join('');
   const typeButtons = `<button class="type-btn ${entry.type === 'self' ? 'active' : ''}" data-entry-type="self" type="button">自分</button>${subcontractEnabled() || entry.type === 'sub' ? `<button class="type-btn ${entry.type === 'sub' ? 'active' : ''}" data-entry-type="sub" type="button">外注職人</button>` : ''}`;
+  const presetChips = companyPresets().map((preset) => `<button class="company-pick-chip ${preset.name === entry.company ? 'active' : ''}" type="button" data-company-preset="${escapeHtml(preset.name)}"><span>${escapeHtml(preset.name)}</span><small>${escapeHtml(companyRateText(preset))}</small></button>`).join('');
+  const companyPickBlock = presetChips ? `<div class="company-picks">${presetChips}</div>` : '';
   document.getElementById('modal-title').textContent = id ? '予定を編集' : '予定を追加';
-  document.getElementById('modal-body').innerHTML = `<div class="type-sel">${typeButtons}</div><form id="entry-form"><div class="field-r2"><div class="field"><label>開始日</label><input id="f-date" type="date" value="${escapeHtml(entry.date)}"></div><div class="field"><label>終了日</label><input id="f-end-date" type="date" value="${escapeHtml(entry.date)}"></div></div>${isSub ? `<div class="field" id="worker-wrap"><label>職人名</label><input id="f-worker" value="${escapeHtml(entry.workerName)}" placeholder="佐藤大工"></div>` : `<div class="field hidden" id="worker-wrap"><label>職人名</label><input id="f-worker" value="${escapeHtml(entry.workerName)}"></div>`}<div class="field"><label>会社名</label><input id="f-company" value="${escapeHtml(entry.company)}" placeholder="空欄でも保存できます"></div><div class="field"><label>現場名</label><input id="f-site" value="${escapeHtml(entry.site)}" placeholder="空欄でも保存できます"></div><div class="field-r2"><div class="field"><label>勤務区分</label><select id="f-shift"><option value="day" ${entry.shift === 'day' ? 'selected' : ''}>日勤</option><option value="night" ${entry.shift === 'night' ? 'selected' : ''}>夜勤</option><option value="trip" ${entry.shift === 'trip' ? 'selected' : ''}>出張</option></select></div><div class="field"><label>人工</label><input id="f-qty" type="number" min="0" step="0.5" value="${entry.qty}"></div></div><div class="field-r3"><div class="field"><label>単価</label><input id="f-rate" type="number" min="0" step="1" value="${rateFieldValue(entry.unitRate)}"></div><div class="field"><label>残業時間</label><input id="f-ot-hours" type="number" min="0" step="0.5" value="${num(entry.otHours) || ''}"></div><div class="field"><label>残業単価</label><input id="f-ot-rate" type="number" min="0" step="1" value="${rateFieldValue(entry.otRate)}"></div></div><div class="sec-hd" style="padding:0 0 8px">経費</div><div class="field-r2">${expenseFields}</div><div class="field"><label>メモ</label><textarea id="f-notes" placeholder="注意点やメモ">${escapeHtml(entry.notes)}</textarea></div><div class="btn-row"><button class="btn-secondary" type="button" id="cancel-entry-btn">キャンセル</button><button class="btn-primary" type="submit">保存</button></div></form>`;
+  document.getElementById('modal-body').innerHTML = `<div class="type-sel">${typeButtons}</div><form id="entry-form"><div class="field-r2"><div class="field"><label>開始日</label><input id="f-date" type="date" value="${escapeHtml(entry.date)}"></div><div class="field"><label>終了日</label><input id="f-end-date" type="date" value="${escapeHtml(entry.date)}"></div></div>${isSub ? `<div class="field" id="worker-wrap"><label>職人名</label><input id="f-worker" value="${escapeHtml(entry.workerName)}" placeholder="佐藤大工"></div>` : `<div class="field hidden" id="worker-wrap"><label>職人名</label><input id="f-worker" value="${escapeHtml(entry.workerName)}"></div>`}<div class="field"><label>会社名</label><input id="f-company" value="${escapeHtml(entry.company)}" placeholder="自由入力できます">${companyPickBlock}</div><div class="field"><label>現場名</label><input id="f-site" value="${escapeHtml(entry.site)}" placeholder="空欄でも保存できます"></div><div class="field-r2"><div class="field"><label>勤務区分</label><select id="f-shift"><option value="day" ${entry.shift === 'day' ? 'selected' : ''}>日勤</option><option value="night" ${entry.shift === 'night' ? 'selected' : ''}>夜勤</option><option value="trip" ${entry.shift === 'trip' ? 'selected' : ''}>出張</option></select></div><div class="field"><label>人工</label><input id="f-qty" type="number" min="0" step="0.5" value="${entry.qty}"></div></div><div class="field-r3"><div class="field"><label>単価</label><input id="f-rate" type="number" min="0" step="1" value="${rateFieldValue(entry.unitRate)}"></div><div class="field"><label>残業時間</label><input id="f-ot-hours" type="number" min="0" step="0.5" value="${num(entry.otHours) || ''}"></div><div class="field"><label>残業単価</label><input id="f-ot-rate" type="number" min="0" step="1" value="${rateFieldValue(entry.otRate)}"></div></div><div class="sec-hd" style="padding:0 0 8px">経費</div><div class="field-r2">${expenseFields}</div><div class="field"><label>メモ</label><textarea id="f-notes" placeholder="注意点やメモ">${escapeHtml(entry.notes)}</textarea></div><div class="btn-row"><button class="btn-secondary" type="button" id="cancel-entry-btn">キャンセル</button><button class="btn-primary" type="submit">保存</button></div></form>`;
   document.getElementById('modal-bg').classList.add('open');
 }
 function closeModal() {
@@ -503,7 +549,8 @@ function handleReceiptFiles(files) {
 }
 function saveSettings() {
   const linesToObjects = (text, previous) => text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((label, index) => ({ id: previous[index]?.id || `exp${index + 1}`, label }));
-  state.settings = { ...state.settings, name: document.getElementById('st-name').value.trim(), address: document.getElementById('st-addr').value.trim(), tel: document.getElementById('st-tel').value.trim(), companyName: document.getElementById('st-co').value.trim(), bank: document.getElementById('st-bank').value.trim(), branch: document.getElementById('st-branch').value.trim(), accountNo: document.getElementById('st-accno').value.trim(), accountName: document.getElementById('st-accname').value.trim(), invoiceNo: document.getElementById('st-invno').value.trim(), invoiceEnabled: document.getElementById('tgl-inv').classList.contains('on'), showSubcontract: document.getElementById('tgl-subcontract')?.classList.contains('on') !== false, taxRate: num(document.getElementById('st-tax').value || 10), defaultDayRate: num(document.getElementById('st-tanka').value || 0), defaultNightRate: num(document.getElementById('st-ntanka').value || 0), defaultOtRate: num(document.getElementById('st-ottanka').value || 0), companies: settingListValues('st-companies'), expenseItems: linesToObjects(document.getElementById('st-expenses').value, expenseItems()) };
+  const companyRates = companyPresetValues();
+  state.settings = { ...state.settings, name: document.getElementById('st-name').value.trim(), address: document.getElementById('st-addr').value.trim(), tel: document.getElementById('st-tel').value.trim(), companyName: document.getElementById('st-co').value.trim(), bank: document.getElementById('st-bank').value.trim(), branch: document.getElementById('st-branch').value.trim(), accountNo: document.getElementById('st-accno').value.trim(), accountName: document.getElementById('st-accname').value.trim(), invoiceNo: document.getElementById('st-invno').value.trim(), invoiceEnabled: document.getElementById('tgl-inv').classList.contains('on'), showSubcontract: document.getElementById('tgl-subcontract')?.classList.contains('on') !== false, taxRate: num(document.getElementById('st-tax').value || 10), defaultDayRate: num(document.getElementById('st-tanka').value || 0), defaultNightRate: num(document.getElementById('st-ntanka').value || 0), defaultOtRate: num(document.getElementById('st-ottanka').value || 0), companyRates, companies: companyRates.map((item) => item.name), expenseItems: linesToObjects(document.getElementById('st-expenses').value, expenseItems()) };
   state.entries = state.entries.map((entry) => { const nextExpenses = {}; expenseItems().forEach((item) => { nextExpenses[item.id] = num(entry.expenses?.[item.id]); }); return { ...entry, expenses: nextExpenses }; });
   saveState(); renderAll(); showSaveFeedback('設定を保存しました');
 }
@@ -543,9 +590,9 @@ function bindEvents() {
   document.getElementById('fab-main').addEventListener('click', () => { closeDayModal(); openModal('self'); });
   document.getElementById('fab-sub').addEventListener('click', () => { if (!subcontractEnabled()) return; closeDayModal(); openModal('sub'); });
   document.getElementById('save-settings-btn').addEventListener('click', saveSettings);
-  document.getElementById('add-company-btn')?.addEventListener('click', () => addSettingListItem('st-companies', 'st-company-new'));
+  document.getElementById('add-company-btn')?.addEventListener('click', addCompanyPreset);
   document.getElementById('add-expense-btn')?.addEventListener('click', () => addSettingListItem('st-expenses', 'st-expense-new'));
-  document.getElementById('st-company-new')?.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); addSettingListItem('st-companies', 'st-company-new'); } });
+  ['st-company-new', 'st-company-day-new', 'st-company-night-new', 'st-company-ot-new'].forEach((id) => document.getElementById(id)?.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); addCompanyPreset(); } }));
   document.getElementById('st-expense-new')?.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); addSettingListItem('st-expenses', 'st-expense-new'); } });
   document.getElementById('save-google-settings-btn')?.addEventListener('click', saveGoogleSettings);
   document.getElementById('google-export-month-btn')?.addEventListener('click', exportMonthCalendarIcs);
@@ -561,6 +608,8 @@ function bindEvents() {
   initModalGesture();
 
   document.addEventListener('click', (event) => {
+    const removeCompanyPreset = event.target.closest('[data-remove-company-preset]');
+    if (removeCompanyPreset) { const values = companyPresetValues().filter((_, index) => index !== Number(removeCompanyPreset.dataset.removeCompanyPreset)); writeCompanyPresetValues(values); renderCompanyPresetList(); return; }
     const removeSettingItem = event.target.closest('[data-remove-setting-item]');
     if (removeSettingItem) { const hiddenId = removeSettingItem.dataset.removeSettingItem; const index = Number(removeSettingItem.dataset.removeIndex); const values = settingListValues(hiddenId).filter((_, itemIndex) => itemIndex !== index); writeSettingList(hiddenId, values); renderSettingListEditors(); return; }
     const closeDayButton = event.target.closest('[data-close-day-modal]');
@@ -581,6 +630,8 @@ function bindEvents() {
     if (addDate) { selectedDate = addDate.dataset.addDate; closeDayModal(); openModal('self'); return; }
     const editButton = event.target.closest('[data-edit-entry]'); if (editButton) { closeDayModal(); openModal('self', editButton.dataset.editEntry); return; }
     const delButton = event.target.closest('[data-del-entry]'); if (delButton) { if (confirm('この予定を削除しますか？')) deleteEntry(delButton.dataset.delEntry); return; }
+    const companyPresetButton = event.target.closest('[data-company-preset]');
+    if (companyPresetButton) { const preset = companyPresetByName(companyPresetButton.dataset.companyPreset); if (preset) { document.getElementById('f-company').value = preset.name; document.querySelectorAll('[data-company-preset]').forEach((button) => button.classList.toggle('active', button === companyPresetButton)); const shift = document.getElementById('f-shift')?.value || 'day'; const fallbackRate = shift === 'night' ? state.settings.defaultNightRate : state.settings.defaultDayRate; document.getElementById('f-rate').value = rateFieldValue(rateForPresetShift(preset, shift) || fallbackRate); document.getElementById('f-ot-rate').value = rateFieldValue(preset.otRate || state.settings.defaultOtRate); } return; }
     const applyReceipt = event.target.closest('[data-apply-receipt]');
     if (applyReceipt) { applyReceiptToEntry(applyReceipt.dataset.applyReceipt); return; }
     const delReceipt = event.target.closest('[data-del-receipt]');
@@ -608,7 +659,10 @@ function bindEvents() {
     if (event.target.matches('[data-receipt-amount]')) { updateReceiptField(event.target.dataset.receiptAmount, { amount: num(event.target.value), status: '確認済み' }); return; }
     if (event.target.id === 'f-shift') {
       const rate = document.getElementById('f-rate'); if (!rate) return;
-      if (event.target.value === 'night') rate.value = rateFieldValue(state.settings.defaultNightRate); else if (!num(rate.value)) rate.value = rateFieldValue(state.settings.defaultDayRate);
+      const preset = companyPresetByName(document.getElementById('f-company')?.value.trim());
+      const presetRate = rateForPresetShift(preset, event.target.value);
+      if (preset) rate.value = rateFieldValue(presetRate || (event.target.value === 'night' ? state.settings.defaultNightRate : state.settings.defaultDayRate)); else if (event.target.value === 'night') rate.value = rateFieldValue(state.settings.defaultNightRate); else if (!num(rate.value)) rate.value = rateFieldValue(state.settings.defaultDayRate);
+      if (preset) document.getElementById('f-ot-rate').value = rateFieldValue(preset.otRate || state.settings.defaultOtRate);
     }
   });
 
