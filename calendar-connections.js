@@ -12,20 +12,6 @@
     return !!bandKey(a) && bandKey(a) === bandKey(b);
   }
 
-  function shiftOrder(shift) {
-    return String(shift || 'day') === 'night' ? 99 : 1;
-  }
-
-  function sortEntriesForCalendar(items) {
-    return [...items].sort((a, b) => {
-      return shiftOrder(a.shift) - shiftOrder(b.shift)
-        || String(a.company || '').localeCompare(String(b.company || ''), 'ja')
-        || String(a.site || '').localeCompare(String(b.site || ''), 'ja')
-        || String(a.type || 'self').localeCompare(String(b.type || 'self'), 'ja')
-        || String(a.createdAt || '').localeCompare(String(b.createdAt || ''));
-    });
-  }
-
   function hasAdjacentBand(ymd, entry) {
     if (typeof dayEntries !== 'function') return false;
     return dayEntries(ymd).some((item) => sameWorkBand(entry, item));
@@ -35,22 +21,63 @@
     return dayOfWeek === 0 || !hasAdjacentBand(adjacentYmd(ymd, -1), entry);
   }
 
+  function bandSpan(ymd, entry, dayOfWeek) {
+    let span = 1;
+    while (dayOfWeek + span <= 6 && hasAdjacentBand(adjacentYmd(ymd, span), entry)) span += 1;
+    return span;
+  }
+
+  function shiftSlot(entry, usedSlots) {
+    const preferred = String(entry.shift || 'day') === 'night' ? 2 : 1;
+    if (!usedSlots.has(preferred)) return preferred;
+    for (const slot of [3, 4]) {
+      if (!usedSlots.has(slot)) return slot;
+    }
+    return preferred;
+  }
+
+  function sortEntriesForCalendar(items) {
+    return [...items].sort((a, b) => {
+      const aNight = String(a.shift || 'day') === 'night' ? 1 : 0;
+      const bNight = String(b.shift || 'day') === 'night' ? 1 : 0;
+      return aNight - bNight
+        || String(a.company || '').localeCompare(String(b.company || ''), 'ja')
+        || String(a.site || '').localeCompare(String(b.site || ''), 'ja')
+        || String(a.type || 'self').localeCompare(String(b.type || 'self'), 'ja')
+        || String(a.createdAt || '').localeCompare(String(b.createdAt || ''));
+    });
+  }
+
   function injectStyle() {
     if (document.getElementById(STYLE_ID)) return;
     const style = document.createElement('style');
     style.id = STYLE_ID;
     style.textContent = `
+      #sc-cal #cal-grid,
+      #sc-cal .cal-day,
       #sc-cal .task-stack {
-        justify-content: flex-start;
-        height: 100%;
+        overflow: visible !important;
+      }
+      #sc-cal .task-stack {
+        display: grid !important;
+        grid-template-rows: repeat(4, minmax(0, 18px));
+        gap: 3px;
+        align-content: start;
+        height: 78px;
+        position: relative;
       }
       #sc-cal .cal-task {
+        grid-row: var(--slot, 1);
+        position: relative;
+        z-index: 3;
+        width: calc((100% + 5px) * var(--span, 1) - 5px);
         min-height: 18px;
         white-space: nowrap !important;
         overflow: hidden !important;
         text-overflow: clip !important;
         word-break: keep-all !important;
         -webkit-line-clamp: unset !important;
+        pointer-events: none;
       }
       #sc-cal .cal-task.cont-left {
         border-top-left-radius: 0;
@@ -67,22 +94,17 @@
       #sc-cal .cal-task.cont-left.cont-right {
         border-radius: 0;
       }
-      #sc-cal .cal-task.band-continuation {
-        color: transparent;
-        text-shadow: none;
-      }
-      #sc-cal .cal-task.band-continuation::after {
-        content: '\u00a0';
-      }
       #sc-cal .cal-task.night {
-        order: 99;
-        margin-top: auto;
-      }
-      #sc-cal .cal-task.night ~ .cal-task.night {
-        margin-top: 3px;
+        grid-row: 2;
       }
       @media (max-width: 480px) {
+        #sc-cal .task-stack {
+          grid-template-rows: repeat(4, minmax(0, 15px));
+          gap: 2px;
+          height: 66px;
+        }
         #sc-cal .cal-task {
+          width: calc(100% * var(--span, 1));
           min-height: 15px;
           line-height: 1.08;
         }
@@ -109,11 +131,10 @@
     const right = dayOfWeek !== 6 && hasAdjacentBand(adjacentYmd(ymd, 1), entry);
     if (left) classes.push('cont-left');
     if (right) classes.push('cont-right');
-    if (!isBandStart(ymd, entry, dayOfWeek)) classes.push('band-continuation');
     return classes.filter(Boolean).join(' ');
   };
 
-  window.renderCalendar = function renderCalendarWithConnectedBands() {
+  window.renderCalendar = function renderCalendarWithWeeklySpans() {
     const grid = document.getElementById('cal-grid');
     const monthStart = startOfMonth(cursor);
     const startDay = monthStart.getDay();
@@ -125,20 +146,25 @@
       const date = new Date(firstCell);
       date.setDate(firstCell.getDate() + i);
       const ymd = toYmd(date);
+      const dayOfWeek = date.getDay();
       const items = dayEntries(ymd);
       const classes = ['cal-day'];
       if (date.getMonth() !== cursor.getMonth()) classes.push('other');
       if (ymd === selectedDate) classes.push('sel');
       if (ymd === toYmd(new Date())) classes.push('today');
-      if (date.getDay() === 0) classes.push('sun');
-      if (date.getDay() === 6) classes.push('sat');
+      if (dayOfWeek === 0) classes.push('sun');
+      if (dayOfWeek === 6) classes.push('sat');
 
-      const displayedItems = sortEntriesForCalendar(items);
-      const lines = displayedItems.slice(0, 4).map((entry) => {
-        const label = isBandStart(ymd, entry, date.getDay()) ? escapeHtml(companyEventTitle(entry)) : '';
-        return `<div class="${window.calendarTaskClass(entry, ymd, date.getDay())}">${label}</div>`;
+      const usedSlots = new Set();
+      const visibleItems = sortEntriesForCalendar(items).filter((entry) => isBandStart(ymd, entry, dayOfWeek));
+      const lines = visibleItems.slice(0, 4).map((entry) => {
+        const slot = shiftSlot(entry, usedSlots);
+        usedSlots.add(slot);
+        const span = bandSpan(ymd, entry, dayOfWeek);
+        const label = escapeHtml(companyEventTitle(entry));
+        return `<div class="${window.calendarTaskClass(entry, ymd, dayOfWeek)}" style="--slot:${slot};--span:${span}">${label}</div>`;
       }).join('');
-      const more = items.length > 4 ? `<div class="more-chip">•••</div>` : '';
+      const more = visibleItems.length > 4 ? `<div class="more-chip">•••</div>` : '';
       rows.push(`<button class="${classes.join(' ')}" data-date="${ymd}"><span class="dn">${date.getDate()}</span><div class="task-stack">${lines}</div>${more}</button>`);
     }
 
