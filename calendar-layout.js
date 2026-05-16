@@ -1,5 +1,6 @@
 (function () {
   const STYLE_ID = 'genba-calendar-fixed-layout';
+  const DETAILS_BUTTON_CLASS = 'summary-detail-toggle';
 
   function injectStyle() {
     if (document.getElementById(STYLE_ID)) return;
@@ -30,34 +31,64 @@
         overflow: hidden;
         align-content: stretch;
       }
-      #sc-cal .cal-day {
-        min-height: 0;
-      }
+      #sc-cal .cal-day,
       #sc-cal .task-stack {
         min-height: 0;
       }
       #sc-cal .sum-grid {
         flex: 0 0 auto;
-        padding: 8px 10px calc(10px + var(--safe-bot));
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 58px;
+        gap: 6px;
+        padding: 7px 9px calc(8px + var(--safe-bot));
         background: rgba(238, 243, 248, .98);
         border-top: 1px solid var(--line);
-        box-shadow: 0 -10px 24px rgba(15, 23, 42, .07);
+        box-shadow: 0 -8px 20px rgba(15, 23, 42, .06);
       }
       #sc-cal .sum-card {
-        min-height: 58px;
+        min-height: 46px;
         border-radius: 10px;
-        padding: 8px 10px;
+        padding: 7px 9px;
+      }
+      #sc-cal:not(.summary-expanded) .sum-card:nth-child(n+3) {
+        display: none;
+      }
+      #sc-cal.summary-expanded .sum-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      #sc-cal.summary-expanded .summary-detail-toggle {
+        grid-column: 1 / -1;
+        width: 100%;
+        min-height: 36px;
       }
       #sc-cal .sl {
-        font-size: 11px;
-        line-height: 1.2;
+        font-size: 10px;
+        line-height: 1.15;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       #sc-cal .sv {
-        font-size: 19px;
+        font-size: 17px;
         line-height: 1.1;
         margin-top: 3px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      #sc-cal .summary-detail-toggle {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 900;
+        min-height: 46px;
+        padding: 0 6px;
       }
       #sc-cal .fab {
+        bottom: calc(78px + var(--safe-bot));
+      }
+      #sc-cal.summary-expanded .fab {
         bottom: calc(126px + var(--safe-bot));
       }
       @media (max-width: 480px) {
@@ -98,27 +129,61 @@
           padding: 2px 3px;
         }
         #sc-cal .sum-grid {
-          gap: 6px;
-          padding: 7px 9px calc(9px + var(--safe-bot));
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 52px;
         }
         #sc-cal .sum-card {
-          min-height: 52px;
-          padding: 7px 9px;
+          min-height: 42px;
+          padding: 6px 8px;
         }
         #sc-cal .sl {
-          font-size: 10px;
+          font-size: 9.5px;
         }
         #sc-cal .sv {
-          font-size: 17px;
+          font-size: 15.5px;
+        }
+        #sc-cal .summary-detail-toggle {
+          min-height: 42px;
+          font-size: 11px;
         }
         #sc-cal .fab {
           width: 54px;
           height: 54px;
+          bottom: calc(74px + var(--safe-bot));
+        }
+        #sc-cal.summary-expanded .fab {
           bottom: calc(116px + var(--safe-bot));
         }
       }
     `;
     document.head.appendChild(style);
+  }
+
+  function ensureSummaryToggle() {
+    const calendar = document.getElementById('sc-cal');
+    const grid = document.getElementById('sum-grid');
+    if (!calendar || !grid || grid.querySelector(`.${DETAILS_BUTTON_CLASS}`)) return;
+    const button = document.createElement('button');
+    button.className = DETAILS_BUTTON_CLASS;
+    button.type = 'button';
+    button.textContent = calendar.classList.contains('summary-expanded') ? '閉じる' : '詳細';
+    grid.appendChild(button);
+  }
+
+  function updateSummaryToggleLabel() {
+    const calendar = document.getElementById('sc-cal');
+    const button = document.querySelector(`#sum-grid .${DETAILS_BUTTON_CLASS}`);
+    if (calendar && button) button.textContent = calendar.classList.contains('summary-expanded') ? '閉じる' : '詳細';
+  }
+
+  function watchSummary() {
+    const grid = document.getElementById('sum-grid');
+    if (!grid) return;
+    const observer = new MutationObserver(() => {
+      ensureSummaryToggle();
+      updateSummaryToggleLabel();
+    });
+    observer.observe(grid, { childList: true });
+    ensureSummaryToggle();
   }
 
   function preventCalendarSwipe(event) {
@@ -130,6 +195,12 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     injectStyle();
+    watchSummary();
     document.addEventListener('touchmove', preventCalendarSwipe, { passive: false });
+    document.addEventListener('click', (event) => {
+      if (!event.target.closest(`.${DETAILS_BUTTON_CLASS}`)) return;
+      document.getElementById('sc-cal')?.classList.toggle('summary-expanded');
+      updateSummaryToggleLabel();
+    });
   });
 })();
