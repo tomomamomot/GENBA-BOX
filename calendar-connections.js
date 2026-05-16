@@ -32,8 +32,7 @@
   }
 
   function isBandStart(ymd, entry, dayOfWeek) {
-    if (ymd === (entry.date || ymd)) return true;
-    return dayOfWeek === 0 && hasAdjacentBand(ymd, entry);
+    return dayOfWeek === 0 || !hasAdjacentBand(adjacentYmd(ymd, -1), entry);
   }
 
   function injectStyle() {
@@ -114,7 +113,7 @@
     return classes.filter(Boolean).join(' ');
   };
 
-  window.renderCalendar = function renderCalendarWithMergedBands() {
+  window.renderCalendar = function renderCalendarWithConnectedBands() {
     const grid = document.getElementById('cal-grid');
     const monthStart = startOfMonth(cursor);
     const startDay = monthStart.getDay();
