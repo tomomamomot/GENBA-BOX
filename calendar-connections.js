@@ -13,17 +13,15 @@
   }
 
   function shiftOrder(shift) {
-    return { day: 1, trip: 2, night: 3 }[shift] || 1;
+    return String(shift || 'day') === 'night' ? 99 : 1;
   }
 
   function sortEntriesForCalendar(items) {
     return [...items].sort((a, b) => {
-      const aContinues = hasAdjacentBand(adjacentYmd(a.date, -1), a) ? 1 : 0;
-      const bContinues = hasAdjacentBand(adjacentYmd(b.date, -1), b) ? 1 : 0;
       return shiftOrder(a.shift) - shiftOrder(b.shift)
         || String(a.company || '').localeCompare(String(b.company || ''), 'ja')
         || String(a.site || '').localeCompare(String(b.site || ''), 'ja')
-        || aContinues - bContinues
+        || String(a.type || 'self').localeCompare(String(b.type || 'self'), 'ja')
         || String(a.createdAt || '').localeCompare(String(b.createdAt || ''));
     });
   }
@@ -38,8 +36,16 @@
     const style = document.createElement('style');
     style.id = STYLE_ID;
     style.textContent = `
+      #sc-cal .task-stack {
+        justify-content: flex-start;
+      }
       #sc-cal .cal-task {
         min-height: 18px;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: clip !important;
+        word-break: keep-all !important;
+        -webkit-line-clamp: unset !important;
       }
       #sc-cal .cal-task.cont-left {
         border-top-left-radius: 0;
@@ -56,14 +62,18 @@
       #sc-cal .cal-task.cont-left.cont-right {
         border-radius: 0;
       }
-      #sc-cal .cal-task.band-fill {
-        color: transparent;
-        text-shadow: none;
+      #sc-cal .cal-task.night {
+        order: 99;
+        margin-top: auto;
       }
-      #sc-cal .cal-task.band-fill::after {
-        content: '\u00a0';
+      #sc-cal .cal-task.night ~ .cal-task.night {
+        margin-top: 3px;
       }
       @media (max-width: 480px) {
+        #sc-cal .cal-task {
+          min-height: 15px;
+          line-height: 1.08;
+        }
         #sc-cal .cal-task.cont-left {
           margin-left: -4px;
           padding-left: 6px;
@@ -85,7 +95,7 @@
     const classes = ['cal-task', shiftClass(entry.shift), entry.type === 'sub' ? 'sub' : ''];
     const left = dayOfWeek !== 0 && hasAdjacentBand(adjacentYmd(ymd, -1), entry);
     const right = dayOfWeek !== 6 && hasAdjacentBand(adjacentYmd(ymd, 1), entry);
-    if (left) classes.push('cont-left', 'band-fill');
+    if (left) classes.push('cont-left');
     if (right) classes.push('cont-right');
     return classes.filter(Boolean).join(' ');
   };
@@ -112,8 +122,7 @@
 
       const displayedItems = sortEntriesForCalendar(items);
       const lines = displayedItems.slice(0, 4).map((entry) => {
-        const isContinuation = date.getDay() !== 0 && hasAdjacentBand(adjacentYmd(ymd, -1), entry);
-        const label = isContinuation ? '' : escapeHtml(companyEventTitle(entry));
+        const label = escapeHtml(companyEventTitle(entry));
         return `<div class="${window.calendarTaskClass(entry, ymd, date.getDay())}">${label}</div>`;
       }).join('');
       const more = items.length > 4 ? `<div class="more-chip">•••</div>` : '';
