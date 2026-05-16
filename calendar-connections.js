@@ -31,6 +31,11 @@
     return dayEntries(ymd).some((item) => sameWorkBand(entry, item));
   }
 
+  function isBandStart(ymd, entry, dayOfWeek) {
+    if (ymd === (entry.date || ymd)) return true;
+    return dayOfWeek === 0 && hasAdjacentBand(ymd, entry);
+  }
+
   function injectStyle() {
     if (document.getElementById(STYLE_ID)) return;
     const style = document.createElement('style');
@@ -38,6 +43,7 @@
     style.textContent = `
       #sc-cal .task-stack {
         justify-content: flex-start;
+        height: 100%;
       }
       #sc-cal .cal-task {
         min-height: 18px;
@@ -61,6 +67,13 @@
       }
       #sc-cal .cal-task.cont-left.cont-right {
         border-radius: 0;
+      }
+      #sc-cal .cal-task.band-continuation {
+        color: transparent;
+        text-shadow: none;
+      }
+      #sc-cal .cal-task.band-continuation::after {
+        content: '\u00a0';
       }
       #sc-cal .cal-task.night {
         order: 99;
@@ -97,6 +110,7 @@
     const right = dayOfWeek !== 6 && hasAdjacentBand(adjacentYmd(ymd, 1), entry);
     if (left) classes.push('cont-left');
     if (right) classes.push('cont-right');
+    if (!isBandStart(ymd, entry, dayOfWeek)) classes.push('band-continuation');
     return classes.filter(Boolean).join(' ');
   };
 
@@ -122,7 +136,7 @@
 
       const displayedItems = sortEntriesForCalendar(items);
       const lines = displayedItems.slice(0, 4).map((entry) => {
-        const label = escapeHtml(companyEventTitle(entry));
+        const label = isBandStart(ymd, entry, date.getDay()) ? escapeHtml(companyEventTitle(entry)) : '';
         return `<div class="${window.calendarTaskClass(entry, ymd, date.getDay())}">${label}</div>`;
       }).join('');
       const more = items.length > 4 ? `<div class="more-chip">•••</div>` : '';
