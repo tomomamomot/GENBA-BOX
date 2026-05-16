@@ -1,6 +1,7 @@
 (function () {
   const STYLE_ID = 'genba-calendar-fixed-layout';
   const DETAILS_BUTTON_CLASS = 'summary-detail-toggle';
+  const SETTINGS_BUTTON_ID = 'cal-settings-shortcut';
 
   function injectStyle() {
     if (document.getElementById(STYLE_ID)) return;
@@ -16,13 +17,45 @@
         padding-bottom: 0;
         overscroll-behavior: contain;
       }
-      #sc-cal .topbar,
+      #sc-cal .topbar {
+        position: relative;
+        top: auto;
+        flex: 0 0 auto;
+        padding: calc(7px + var(--safe-top)) 12px 7px;
+      }
+      #sc-cal .topbar-row {
+        min-height: 34px;
+      }
+      #sc-cal .topbar-title {
+        font-size: 18px;
+        line-height: 1;
+      }
+      #sc-cal .topbar-sub {
+        display: none;
+      }
+      #sc-cal .topbar-actions {
+        gap: 6px;
+      }
+      #sc-cal .ghost-icon-btn,
+      #sc-cal .cal-settings-btn {
+        width: 38px;
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(255,255,255,.28);
+        border-radius: 11px;
+        background: rgba(255,255,255,.12);
+        color: #fff;
+        padding: 0;
+        font-size: 17px;
+        font-weight: 900;
+        line-height: 1;
+      }
       #sc-cal .month-nav {
         position: relative;
         top: auto;
         flex: 0 0 auto;
-      }
-      #sc-cal .month-nav {
         box-shadow: 0 1px 0 var(--line);
       }
       #sc-cal #cal-grid {
@@ -93,7 +126,19 @@
       }
       @media (max-width: 480px) {
         #sc-cal .topbar {
-          padding-bottom: 8px;
+          padding: calc(6px + var(--safe-top)) 12px 6px;
+        }
+        #sc-cal .topbar-row {
+          min-height: 32px;
+        }
+        #sc-cal .topbar-title {
+          font-size: 17px;
+        }
+        #sc-cal .ghost-icon-btn,
+        #sc-cal .cal-settings-btn {
+          width: 36px;
+          height: 32px;
+          font-size: 16px;
         }
         #sc-cal .month-nav {
           padding: 8px 14px;
@@ -158,6 +203,18 @@
     document.head.appendChild(style);
   }
 
+  function ensureSettingsShortcut() {
+    const actions = document.querySelector('#sc-cal .topbar-actions');
+    if (!actions || document.getElementById(SETTINGS_BUTTON_ID)) return;
+    const button = document.createElement('button');
+    button.id = SETTINGS_BUTTON_ID;
+    button.className = 'cal-settings-btn';
+    button.type = 'button';
+    button.setAttribute('aria-label', '設定');
+    button.textContent = '⚙';
+    actions.insertBefore(button, actions.firstChild);
+  }
+
   function ensureSummaryToggle() {
     const calendar = document.getElementById('sc-cal');
     const grid = document.getElementById('sum-grid');
@@ -195,9 +252,15 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     injectStyle();
+    ensureSettingsShortcut();
     watchSummary();
     document.addEventListener('touchmove', preventCalendarSwipe, { passive: false });
     document.addEventListener('click', (event) => {
+      if (event.target.closest(`#${SETTINGS_BUTTON_ID}`)) {
+        activeScreen = 'st';
+        if (typeof renderAll === 'function') renderAll();
+        return;
+      }
       if (!event.target.closest(`.${DETAILS_BUTTON_CLASS}`)) return;
       document.getElementById('sc-cal')?.classList.toggle('summary-expanded');
       updateSummaryToggleLabel();
