@@ -1,11 +1,12 @@
-const CACHE = 'genba-box-v25';
+const CACHE = 'genba-box-v26';
 const ENHANCEMENT_SCRIPTS = [
   '<script src="report.js?v=17"></script>',
   '<script src="calendar-layout.js?v=22"></script>',
-  '<script src="calendar-connections.js?v=25"></script>',
+  '<script src="range-entries.js?v=26"></script>',
+  '<script src="calendar-connections.js?v=26"></script>',
   '<script src="ui-preferences.js?v=19"></script>',
 ];
-const ASSETS = ['./', './index.html', './styles.css?v=16', './app.js?v=16', './report.js?v=17', './calendar-layout.js?v=22', './calendar-connections.js?v=25', './ui-preferences.js?v=19', './manifest.json?v=16', './icon-192.png', './icon-512.png'];
+const ASSETS = ['./', './index.html', './styles.css?v=16', './app.js?v=16', './report.js?v=17', './calendar-layout.js?v=22', './range-entries.js?v=26', './calendar-connections.js?v=26', './ui-preferences.js?v=19', './manifest.json?v=16', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
