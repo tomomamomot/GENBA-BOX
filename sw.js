@@ -1,12 +1,13 @@
-const CACHE = 'genba-box-v28';
+const CACHE = 'ninq-v29';
 const ENHANCEMENT_SCRIPTS = [
+  '<script src="brand.js?v=29"></script>',
   '<script src="report.js?v=17"></script>',
   '<script src="calendar-layout.js?v=22"></script>',
   '<script src="range-entries.js?v=27"></script>',
-  '<script src="calendar-connections.js?v=28"></script>',
+  '<script src="calendar-connections.js?v=29"></script>',
   '<script src="ui-preferences.js?v=19"></script>',
 ];
-const ASSETS = ['./', './index.html', './styles.css?v=16', './app.js?v=16', './report.js?v=17', './calendar-layout.js?v=22', './range-entries.js?v=27', './calendar-connections.js?v=28', './ui-preferences.js?v=19', './manifest.json?v=16', './icon-192.png', './icon-512.png'];
+const ASSETS = ['./', './index.html', './styles.css?v=16', './app.js?v=16', './brand.js?v=29', './report.js?v=17', './calendar-layout.js?v=22', './range-entries.js?v=27', './calendar-connections.js?v=29', './ui-preferences.js?v=19', './manifest.json?v=16', './ninq-logo.svg', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
