@@ -72,27 +72,13 @@
         z-index: 3;
         width: calc((100% + 5px) * var(--span, 1) - 5px);
         min-height: 18px;
+        border-radius: 8px !important;
         white-space: nowrap !important;
         overflow: hidden !important;
         text-overflow: clip !important;
         word-break: keep-all !important;
         -webkit-line-clamp: unset !important;
         pointer-events: none;
-      }
-      #sc-cal .cal-task.cont-left {
-        border-top-left-radius: 0;
-        border-bottom-left-radius: 0;
-        margin-left: -5px;
-        padding-left: 8px;
-      }
-      #sc-cal .cal-task.cont-right {
-        border-top-right-radius: 0;
-        border-bottom-right-radius: 0;
-        margin-right: -5px;
-        padding-right: 8px;
-      }
-      #sc-cal .cal-task.cont-left.cont-right {
-        border-radius: 0;
       }
       #sc-cal .cal-task.night {
         grid-row: 2;
@@ -106,15 +92,8 @@
         #sc-cal .cal-task {
           width: calc(100% * var(--span, 1));
           min-height: 15px;
+          border-radius: 6px !important;
           line-height: 1.08;
-        }
-        #sc-cal .cal-task.cont-left {
-          margin-left: -4px;
-          padding-left: 6px;
-        }
-        #sc-cal .cal-task.cont-right {
-          margin-right: -4px;
-          padding-right: 6px;
         }
       }
     `;
@@ -125,13 +104,8 @@
     return hasAdjacentBand(ymd, entry);
   };
 
-  window.calendarTaskClass = function calendarTaskClassBySite(entry, ymd, dayOfWeek) {
-    const classes = ['cal-task', shiftClass(entry.shift), entry.type === 'sub' ? 'sub' : ''];
-    const left = dayOfWeek !== 0 && hasAdjacentBand(adjacentYmd(ymd, -1), entry);
-    const right = dayOfWeek !== 6 && hasAdjacentBand(adjacentYmd(ymd, 1), entry);
-    if (left) classes.push('cont-left');
-    if (right) classes.push('cont-right');
-    return classes.filter(Boolean).join(' ');
+  window.calendarTaskClass = function calendarTaskClassBySite(entry) {
+    return ['cal-task', shiftClass(entry.shift), entry.type === 'sub' ? 'sub' : ''].filter(Boolean).join(' ');
   };
 
   window.renderCalendar = function renderCalendarWithWeeklySpans() {
@@ -162,7 +136,7 @@
         usedSlots.add(slot);
         const span = bandSpan(ymd, entry, dayOfWeek);
         const label = escapeHtml(companyEventTitle(entry));
-        return `<div class="${window.calendarTaskClass(entry, ymd, dayOfWeek)}" style="--slot:${slot};--span:${span}">${label}</div>`;
+        return `<div class="${window.calendarTaskClass(entry)}" style="--slot:${slot};--span:${span}">${label}</div>`;
       }).join('');
       const more = visibleItems.length > 4 ? `<div class="more-chip">•••</div>` : '';
       rows.push(`<button class="${classes.join(' ')}" data-date="${ymd}"><span class="dn">${date.getDate()}</span><div class="task-stack">${lines}</div>${more}</button>`);
