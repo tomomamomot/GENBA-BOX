@@ -1,5 +1,81 @@
 (function () {
   const STYLE_ID = 'genba-calendar-connections-style';
+  const HOLIDAY_CACHE = new Map();
+
+  function columnIndex(date) {
+    return (date.getDay() + 6) % 7;
+  }
+
+  function ymdFromParts(year, month, day) {
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  }
+
+  function nthMonday(year, month, nth) {
+    const date = new Date(year, month - 1, 1);
+    const offset = (8 - date.getDay()) % 7;
+    return 1 + offset + (nth - 1) * 7;
+  }
+
+  function addHoliday(map, year, month, day, name) {
+    map.set(ymdFromParts(year, month, day), name);
+  }
+
+  function equinoxDay(year, spring) {
+    const base = spring ? 20.8431 : 23.2488;
+    return Math.floor(base + 0.242194 * (year - 1980) - Math.floor((year - 1980) / 4));
+  }
+
+  function buildHolidayMap(year) {
+    const map = new Map();
+    addHoliday(map, year, 1, 1, '元日');
+    addHoliday(map, year, 1, nthMonday(year, 1, 2), '成人の日');
+    addHoliday(map, year, 2, 11, '建国記念の日');
+    if (year >= 2020) addHoliday(map, year, 2, 23, '天皇誕生日');
+    addHoliday(map, year, 3, equinoxDay(year, true), '春分の日');
+    addHoliday(map, year, 4, 29, '昭和の日');
+    addHoliday(map, year, 5, 3, '憲法記念日');
+    addHoliday(map, year, 5, 4, 'みどりの日');
+    addHoliday(map, year, 5, 5, 'こどもの日');
+    if (year === 2020) addHoliday(map, year, 7, 23, '海の日');
+    else if (year === 2021) addHoliday(map, year, 7, 22, '海の日');
+    else addHoliday(map, year, 7, nthMonday(year, 7, 3), '海の日');
+    if (year === 2020) addHoliday(map, year, 8, 10, '山の日');
+    else if (year === 2021) addHoliday(map, year, 8, 8, '山の日');
+    else if (year >= 2016) addHoliday(map, year, 8, 11, '山の日');
+    addHoliday(map, year, 9, nthMonday(year, 9, 3), '敬老の日');
+    addHoliday(map, year, 9, equinoxDay(year, false), '秋分の日');
+    if (year === 2020) addHoliday(map, year, 7, 24, 'スポーツの日');
+    else if (year === 2021) addHoliday(map, year, 7, 23, 'スポーツの日');
+    else addHoliday(map, year, 10, nthMonday(year, 10, 2), 'スポーツの日');
+    addHoliday(map, year, 11, 3, '文化の日');
+    addHoliday(map, year, 11, 23, '勤労感謝の日');
+
+    [...map.keys()].sort().forEach((ymd) => {
+      const date = fromYmd(ymd);
+      if (date.getDay() !== 0) return;
+      date.setDate(date.getDate() + 1);
+      while (map.has(toYmd(date))) date.setDate(date.getDate() + 1);
+      if (date.getFullYear() === year) map.set(toYmd(date), '振替休日');
+    });
+
+    for (let m = 0; m < 12; m += 1) {
+      const date = new Date(year, m, 2);
+      while (date.getMonth() === m) {
+        const ymd = toYmd(date);
+        if (!map.has(ymd) && map.has(toYmd(new Date(date.getFullYear(), date.getMonth(), date.getDate() - 1))) && map.has(toYmd(new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1)))) {
+          map.set(ymd, '国民の休日');
+        }
+        date.setDate(date.getDate() + 1);
+      }
+    }
+    return map;
+  }
+
+  function holidayName(ymd) {
+    const year = Number(String(ymd).slice(0, 4));
+    if (!HOLIDAY_CACHE.has(year)) HOLIDAY_CACHE.set(year, buildHolidayMap(year));
+    return HOLIDAY_CACHE.get(year).get(ymd) || '';
+  }
 
   function bandKey(entry) {
     const company = String(entry?.company || '').trim();
@@ -17,13 +93,13 @@
     return dayEntries(ymd).some((item) => sameWorkBand(entry, item));
   }
 
-  function isBandStart(ymd, entry, dayOfWeek) {
-    return dayOfWeek === 0 || !hasAdjacentBand(adjacentYmd(ymd, -1), entry);
+  function isBandStart(ymd, entry, col) {
+    return col === 0 || !hasAdjacentBand(adjacentYmd(ymd, -1), entry);
   }
 
-  function bandSpan(ymd, entry, dayOfWeek) {
+  function bandSpan(ymd, entry, col) {
     let span = 1;
-    while (dayOfWeek + span <= 6 && hasAdjacentBand(adjacentYmd(ymd, span), entry)) span += 1;
+    while (col + span <= 6 && hasAdjacentBand(adjacentYmd(ymd, span), entry)) span += 1;
     return span;
   }
 
@@ -55,9 +131,7 @@
     style.textContent = `
       #sc-cal #cal-grid,
       #sc-cal .cal-day,
-      #sc-cal .task-stack {
-        overflow: visible !important;
-      }
+      #sc-cal .task-stack { overflow: visible !important; }
       #sc-cal .task-stack {
         display: grid !important;
         grid-template-rows: repeat(4, minmax(0, 18px));
@@ -80,8 +154,22 @@
         -webkit-line-clamp: unset !important;
         pointer-events: none;
       }
-      #sc-cal .cal-task.night {
-        grid-row: 2;
+      #sc-cal .cal-task.night { grid-row: 2; }
+      #sc-cal .cal-day.holiday .dn,
+      #sc-cal .cal-day.holiday.sun .dn { color: var(--red); }
+      #sc-cal .cal-day.today.holiday .dn { color: #fff; }
+      #sc-cal .holiday-name {
+        display: block;
+        min-height: 13px;
+        margin-top: -2px;
+        margin-bottom: 1px;
+        color: var(--red);
+        font-size: 9px;
+        line-height: 1;
+        font-weight: 900;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: clip;
       }
       @media (max-width: 480px) {
         #sc-cal .task-stack {
@@ -95,6 +183,7 @@
           border-radius: 6px !important;
           line-height: 1.08;
         }
+        #sc-cal .holiday-name { font-size: 8px; min-height: 10px; }
       }
     `;
     document.head.appendChild(style);
@@ -108,38 +197,41 @@
     return ['cal-task', shiftClass(entry.shift), entry.type === 'sub' ? 'sub' : ''].filter(Boolean).join(' ');
   };
 
-  window.renderCalendar = function renderCalendarWithWeeklySpans() {
+  window.renderCalendar = function renderCalendarWithMondayStart() {
     const grid = document.getElementById('cal-grid');
     const monthStart = startOfMonth(cursor);
-    const startDay = monthStart.getDay();
+    const startCol = columnIndex(monthStart);
     const firstCell = new Date(monthStart);
-    firstCell.setDate(firstCell.getDate() - startDay);
-    const rows = ['日', '月', '火', '水', '木', '金', '土'].map((label) => `<div class="cal-dow">${label}</div>`);
+    firstCell.setDate(firstCell.getDate() - startCol);
+    const rows = ['月', '火', '水', '木', '金', '土', '日'].map((label) => `<div class="cal-dow">${label}</div>`);
 
     for (let i = 0; i < 42; i += 1) {
       const date = new Date(firstCell);
       date.setDate(firstCell.getDate() + i);
       const ymd = toYmd(date);
-      const dayOfWeek = date.getDay();
+      const col = columnIndex(date);
+      const holiday = holidayName(ymd);
       const items = dayEntries(ymd);
       const classes = ['cal-day'];
       if (date.getMonth() !== cursor.getMonth()) classes.push('other');
       if (ymd === selectedDate) classes.push('sel');
       if (ymd === toYmd(new Date())) classes.push('today');
-      if (dayOfWeek === 0) classes.push('sun');
-      if (dayOfWeek === 6) classes.push('sat');
+      if (date.getDay() === 0) classes.push('sun');
+      if (date.getDay() === 6) classes.push('sat');
+      if (holiday) classes.push('holiday');
 
       const usedSlots = new Set();
-      const visibleItems = sortEntriesForCalendar(items).filter((entry) => isBandStart(ymd, entry, dayOfWeek));
+      const visibleItems = sortEntriesForCalendar(items).filter((entry) => isBandStart(ymd, entry, col));
       const lines = visibleItems.slice(0, 4).map((entry) => {
         const slot = shiftSlot(entry, usedSlots);
         usedSlots.add(slot);
-        const span = bandSpan(ymd, entry, dayOfWeek);
+        const span = bandSpan(ymd, entry, col);
         const label = escapeHtml(companyEventTitle(entry));
         return `<div class="${window.calendarTaskClass(entry)}" style="--slot:${slot};--span:${span}">${label}</div>`;
       }).join('');
       const more = visibleItems.length > 4 ? `<div class="more-chip">•••</div>` : '';
-      rows.push(`<button class="${classes.join(' ')}" data-date="${ymd}"><span class="dn">${date.getDate()}</span><div class="task-stack">${lines}</div>${more}</button>`);
+      const holidayHtml = holiday ? `<span class="holiday-name">${escapeHtml(holiday)}</span>` : '<span class="holiday-name"></span>';
+      rows.push(`<button class="${classes.join(' ')}" data-date="${ymd}"><span class="dn">${date.getDate()}</span>${holidayHtml}<div class="task-stack">${lines}</div>${more}</button>`);
     }
 
     grid.innerHTML = rows.join('');
