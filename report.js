@@ -1,6 +1,7 @@
 (function () {
   const STORE_KEY = 'genba-box-v2';
   const REPORT_BUTTONS_ID = 'genba-report-tools';
+  const APP_NAME = 'NINQ';
 
   function readState() {
     try {
@@ -101,7 +102,7 @@
     const items = expenseItems(state.settings);
     const selected = typeof selectedDate !== 'undefined' ? selectedDate : toYmd(new Date());
     const entries = (state.entries || []).filter((entry) => entry.date === selected);
-    const lines = [`GENBA BOX 日報 ${selected}`];
+    const lines = [`${APP_NAME} 日報 ${selected}`];
     if (!entries.length) {
       lines.push('予定なし');
       return lines.join('\n');
@@ -154,11 +155,11 @@
     document.addEventListener('click', (event) => {
       if (event.target.id === 'daily-report-export-btn') {
         const selected = typeof selectedDate !== 'undefined' ? selectedDate : toYmd(new Date());
-        downloadText(`${selected}_GENBA-BOX_日報.txt`, buildDailyText(), 'text/plain;charset=utf-8;');
+        downloadText(`${selected}_${APP_NAME}_日報.txt`, buildDailyText(), 'text/plain;charset=utf-8;');
         setLog(`${selected}の日報を出力しました`);
       }
       if (event.target.id === 'monthly-report-export-btn') {
-        downloadText(`${activeMonthLabel()}_GENBA-BOX_月次一覧.csv`, buildMonthlyCsv(), 'text/csv;charset=utf-8;');
+        downloadText(`${activeMonthLabel()}_${APP_NAME}_月次一覧.csv`, buildMonthlyCsv(), 'text/csv;charset=utf-8;');
         setLog(`${activeMonthLabel()}の月次一覧CSVを出力しました`);
       }
     });
