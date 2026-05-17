@@ -140,13 +140,18 @@
         height: 78px;
         position: relative;
       }
+      #sc-cal .cal-task,
+      #sc-cal .cal-task.cont-left,
+      #sc-cal .cal-task.cont-right,
+      #sc-cal .cal-task.cont-left.cont-right {
+        border-radius: 4px !important;
+      }
       #sc-cal .cal-task {
         grid-row: var(--slot, 1);
         position: relative;
         z-index: 3;
         width: calc((100% + 5px) * var(--span, 1) - 5px);
         min-height: 18px;
-        border-radius: 8px !important;
         white-space: nowrap !important;
         overflow: hidden !important;
         text-overflow: clip !important;
@@ -180,8 +185,13 @@
         #sc-cal .cal-task {
           width: calc(100% * var(--span, 1));
           min-height: 15px;
-          border-radius: 6px !important;
           line-height: 1.08;
+        }
+        #sc-cal .cal-task,
+        #sc-cal .cal-task.cont-left,
+        #sc-cal .cal-task.cont-right,
+        #sc-cal .cal-task.cont-left.cont-right {
+          border-radius: 3px !important;
         }
         #sc-cal .holiday-name { font-size: 8px; min-height: 10px; }
       }
