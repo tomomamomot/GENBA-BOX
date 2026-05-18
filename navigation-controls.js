@@ -35,15 +35,15 @@
         position: absolute;
         top: 0;
         right: 0;
-        width: 100vw;
-        max-width: 100vw;
+        width: min(56vw, 280px);
+        max-width: 280px;
         height: 100%;
         background: #fff;
         color: var(--ink);
         box-shadow: -18px 0 36px rgba(15, 23, 42, .14);
         transform: translateX(100%);
         transition: transform .24s ease;
-        padding: calc(12px + var(--safe-top)) 18px calc(18px + var(--safe-bot));
+        padding: calc(12px + var(--safe-top)) 14px calc(18px + var(--safe-bot));
         display: flex;
         flex-direction: column;
         gap: 14px;
@@ -89,9 +89,9 @@
         background: #f8fafc;
         color: var(--ink);
         border-radius: 14px;
-        padding: 17px 16px;
+        padding: 15px 13px;
         text-align: left;
-        font-size: 17px;
+        font-size: 15px;
         font-weight: 900;
       }
       .ninq-drawer-item.active {
@@ -143,10 +143,10 @@
       }
       .day-modal-bg {
         align-items: flex-start !important;
-        padding-top: calc(72px + var(--safe-top)) !important;
+        padding-top: calc(24dvh + var(--safe-top)) !important;
       }
       .day-modal {
-        max-height: calc(100dvh - 92px - var(--safe-top) - var(--safe-bot)) !important;
+        max-height: calc(76dvh - var(--safe-top) - var(--safe-bot)) !important;
       }
       .screen.ninq-screen-enter {
         animation: ninq-page-in .22s ease both;
@@ -156,15 +156,15 @@
         to { transform: translateX(0); opacity: 1; }
       }
       @media (max-width: 480px) {
-        .ninq-drawer { width: 100vw; max-width: 100vw; padding-left: 16px; padding-right: 16px; }
-        .ninq-drawer-item { min-height: 52px; padding: 15px 14px; }
+        .ninq-drawer { width: 58vw; max-width: 260px; padding-left: 12px; padding-right: 12px; }
+        .ninq-drawer-item { min-height: 48px; padding: 13px 11px; font-size: 14px; }
         .ninq-top-return { min-width: 62px; height: 36px; font-size: 12px !important; }
         .day-modal-head { grid-template-columns: 38px minmax(0, 1fr) 83px; gap: 7px; min-height: 54px; }
         .day-modal-head-actions { min-width: 83px; gap: 7px; }
         .ninq-day-nav-btn,
         .day-modal-close { width: 38px !important; height: 38px !important; border-radius: 11px; }
-        .day-modal-bg { padding-top: calc(60px + var(--safe-top)) !important; }
-        .day-modal { max-height: calc(100dvh - 78px - var(--safe-top) - var(--safe-bot)) !important; }
+        .day-modal-bg { padding-top: calc(23dvh + var(--safe-top)) !important; }
+        .day-modal { max-height: calc(77dvh - var(--safe-top) - var(--safe-bot)) !important; }
       }
     `;
     document.head.appendChild(style);

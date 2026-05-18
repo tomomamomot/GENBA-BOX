@@ -166,9 +166,9 @@
           height: 23px;
         }
         #sc-cal .cal-task {
-          min-height: 15px;
+          min-height: 21px;
           font-size: 10.5px;
-          padding: 2px 3px;
+          padding: 5px 4px;
         }
         #sc-cal .sum-grid {
           grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 52px;
