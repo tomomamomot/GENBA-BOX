@@ -22,7 +22,7 @@
         position: fixed;
         inset: 0;
         z-index: 460;
-        background: rgba(10, 16, 24, .38);
+        background: rgba(10, 16, 24, .18);
         opacity: 0;
         pointer-events: none;
         transition: opacity .18s ease;
@@ -35,14 +35,15 @@
         position: absolute;
         top: 0;
         right: 0;
-        width: min(84vw, 340px);
+        width: 100vw;
+        max-width: 100vw;
         height: 100%;
         background: #fff;
         color: var(--ink);
-        box-shadow: -18px 0 36px rgba(15, 23, 42, .22);
+        box-shadow: -18px 0 36px rgba(15, 23, 42, .14);
         transform: translateX(100%);
-        transition: transform .22s ease;
-        padding: calc(12px + var(--safe-top)) 14px calc(18px + var(--safe-bot));
+        transition: transform .24s ease;
+        padding: calc(12px + var(--safe-top)) 18px calc(18px + var(--safe-bot));
         display: flex;
         flex-direction: column;
         gap: 14px;
@@ -79,18 +80,18 @@
       }
       .ninq-drawer-list {
         display: grid;
-        gap: 8px;
-        padding-top: 4px;
+        gap: 10px;
+        padding-top: 12px;
       }
       .ninq-drawer-item {
         width: 100%;
         border: 1px solid var(--line);
         background: #f8fafc;
         color: var(--ink);
-        border-radius: 13px;
-        padding: 15px 14px;
+        border-radius: 14px;
+        padding: 17px 16px;
         text-align: left;
-        font-size: 16px;
+        font-size: 17px;
         font-weight: 900;
       }
       .ninq-drawer-item.active {
@@ -118,8 +119,9 @@
       }
       .day-modal-head {
         display: grid !important;
-        grid-template-columns: 42px minmax(0, 1fr) auto;
+        grid-template-columns: 42px minmax(0, 1fr) 92px;
         align-items: center;
+        min-height: 58px;
       }
       .day-modal-title {
         text-align: center;
@@ -133,18 +135,36 @@
         align-items: center;
         gap: 8px;
         justify-self: end;
+        min-width: 92px;
       }
       .day-modal-close {
         width: 42px !important;
         height: 42px !important;
       }
+      .day-modal-bg {
+        align-items: flex-start !important;
+        padding-top: calc(72px + var(--safe-top)) !important;
+      }
+      .day-modal {
+        max-height: calc(100dvh - 92px - var(--safe-top) - var(--safe-bot)) !important;
+      }
+      .screen.ninq-screen-enter {
+        animation: ninq-page-in .22s ease both;
+      }
+      @keyframes ninq-page-in {
+        from { transform: translateX(100%); opacity: .96; }
+        to { transform: translateX(0); opacity: 1; }
+      }
       @media (max-width: 480px) {
-        .ninq-drawer { width: min(86vw, 330px); }
-        .ninq-drawer-item { min-height: 48px; padding: 14px 13px; }
+        .ninq-drawer { width: 100vw; max-width: 100vw; padding-left: 16px; padding-right: 16px; }
+        .ninq-drawer-item { min-height: 52px; padding: 15px 14px; }
         .ninq-top-return { min-width: 62px; height: 36px; font-size: 12px !important; }
-        .day-modal-head { grid-template-columns: 38px minmax(0, 1fr) auto; gap: 7px; }
+        .day-modal-head { grid-template-columns: 38px minmax(0, 1fr) 83px; gap: 7px; min-height: 54px; }
+        .day-modal-head-actions { min-width: 83px; gap: 7px; }
         .ninq-day-nav-btn,
         .day-modal-close { width: 38px !important; height: 38px !important; border-radius: 11px; }
+        .day-modal-bg { padding-top: calc(60px + var(--safe-top)) !important; }
+        .day-modal { max-height: calc(100dvh - 78px - var(--safe-top) - var(--safe-bot)) !important; }
       }
     `;
     document.head.appendChild(style);
@@ -204,9 +224,19 @@
   }
 
   function goToScreen(screen) {
+    const previous = currentScreen();
     try { activeScreen = screen; } catch (error) { return; }
     if (screen !== 'cal' && typeof closeDayModal === 'function') closeDayModal();
     if (typeof renderAll === 'function') renderAll();
+    if (screen !== previous) {
+      const target = document.getElementById(`sc-${screen}`);
+      if (target) {
+        target.classList.remove('ninq-screen-enter');
+        void target.offsetWidth;
+        target.classList.add('ninq-screen-enter');
+        window.setTimeout(() => target.classList.remove('ninq-screen-enter'), 260);
+      }
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
     closeDrawer();
     window.setTimeout(refreshControls, 0);
