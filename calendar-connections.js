@@ -150,7 +150,7 @@
         grid-row: var(--slot, 1);
         position: relative;
         z-index: 3;
-        width: calc((100% + 5px) * var(--span, 1) - 5px);
+        width: calc((100% + 13px) * var(--span, 1) - 13px);
         min-height: 18px;
         white-space: nowrap !important;
         overflow: hidden !important;
@@ -183,7 +183,7 @@
           height: 66px;
         }
         #sc-cal .cal-task {
-          width: calc(100% * var(--span, 1));
+          width: calc((100% + 7px) * var(--span, 1) - 7px);
           min-height: 15px;
           line-height: 1.08;
         }
