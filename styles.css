@@ -59,7 +59,7 @@ button{cursor:pointer}
 .pill.day{background:#fff0a8;color:var(--day-ink)}
 .pill.night{background:var(--night-soft);color:var(--night)}
 .pill.trip{background:#eaf7f1;color:var(--trip)}
-.pill.sub{background:#fff2de;color:#a66600}
+.pill.sub{background:#e7f8ee;color:#167a49}
 .etag{background:#f6f8fb;color:var(--sub)}
 .ecard-actions{display:flex;border-top:1px solid var(--line)}
 .ecard-btn{flex:1;border:none;background:none;padding:12px 10px;font-size:13px;font-weight:800;color:var(--sub)}
@@ -87,6 +87,7 @@ input[type="number"]{appearance:textfield;-moz-appearance:textfield}
 .type-sel{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:16px}
 .type-btn{border:1px solid var(--line);background:#fff;color:var(--sub);padding:11px 8px;border-radius:12px;font-size:14px;font-weight:800;text-align:center}
 .type-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.type-btn[data-entry-type="sub"].active{background:#2fb56f;border-color:#2fb56f;color:#fff}
 .range-exclude-wrap{margin:-4px 0 15px}
 .range-exclude-title{font-size:13px;font-weight:900;color:var(--sub);margin-bottom:8px}
 .range-exclude-list{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px}
@@ -143,7 +144,7 @@ input[type="number"]{appearance:textfield;-moz-appearance:textfield}
 .day-panel-actions{display:flex;gap:8px}
 .day-panel-body{padding:12px 14px}
 .day-mini-list{display:grid;gap:10px}
-.day-mini-card{border:1px solid var(--line);border-left:8px solid var(--line);border-radius:14px;padding:14px;background:#fbfdff}.day-mini-card.day{border-left-color:var(--day);background:#fffaf0}.day-mini-card.night{border-left-color:var(--night);background:#fbf7ff}.day-mini-card.trip{border-left-color:var(--trip)}
+.day-mini-card{border:1px solid var(--line);border-left:8px solid var(--line);border-radius:14px;padding:14px;background:#fbfdff}.day-mini-card.day{border-left-color:var(--day);background:#fffaf0}.day-mini-card.night{border-left-color:var(--night);background:#fbf7ff}.day-mini-card.trip{border-left-color:var(--trip)}.day-mini-card.sub{border-color:#9bdfba;border-left-color:#2fb56f;background:#f2fbf6}
 .day-mini-row{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
 .day-mini-title,.day-mini-site{font-size:18px;font-weight:900;line-height:1.35}
 .day-mini-sub,.day-mini-company{margin-top:4px;font-size:14px;color:var(--sub);line-height:1.5;font-weight:800}

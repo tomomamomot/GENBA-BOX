@@ -344,7 +344,8 @@ function renderDayEntries() {
     return;
   }
   body.innerHTML = `<div class="day-mini-list">${entries.map((entry) => {
-    return `<div class="day-mini-card ${shiftClass(entry.shift)}"><div class="day-mini-row"><div><div class="day-mini-site">${escapeHtml(entry.site || '現場名未入力')}</div><div class="day-mini-company">${escapeHtml(entry.company || '会社名未入力')} ・ ${entry.type === 'sub' ? escapeHtml(entry.workerName || '外注職人') : '自分'} ・ ${shiftLabel(entry.shift)}</div></div><div class="pill ${shiftClass(entry.shift)}">${shiftLabel(entry.shift)}</div></div><div class="day-mini-actions"><button class="day-mini-btn" type="button" data-edit-entry="${entry.id}">編集</button><button class="day-mini-btn del" type="button" data-del-entry="${entry.id}">削除</button></div></div>`;
+    const isSub = entry.type === 'sub';
+    return `<div class="day-mini-card ${shiftClass(entry.shift)} ${isSub ? 'sub' : ''}"><div class="day-mini-row"><div><div class="day-mini-site">${escapeHtml(entry.site || '現場名未入力')}</div><div class="day-mini-company">${escapeHtml(entry.company || '会社名未入力')} ・ ${isSub ? escapeHtml(entry.workerName || '外注職人') : '自分'} ・ ${shiftLabel(entry.shift)}</div></div><div class="pill ${isSub ? 'sub' : shiftClass(entry.shift)}">${isSub ? '外注' : shiftLabel(entry.shift)}</div></div><div class="day-mini-actions"><button class="day-mini-btn" type="button" data-edit-entry="${entry.id}">編集</button><button class="day-mini-btn del" type="button" data-del-entry="${entry.id}">削除</button></div></div>`;
   }).join('')}<button class="btn-primary" type="button" data-add-date="${selectedDate}">予定を追加</button></div>`;
   modal.classList.toggle('open', activeScreen === 'cal' && isDayModalOpen);
 }
