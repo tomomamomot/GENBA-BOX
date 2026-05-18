@@ -10,7 +10,7 @@
 <title>GENBA BOX</title>
 <link rel="manifest" href="manifest.json?v=16">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="styles.css?v=21">
+<link rel="stylesheet" href="styles.css?v=22">
 </head>
 <body>
 <div id="sc-cal" class="screen active">
@@ -204,6 +204,25 @@
     <div class="sync-section">
       <div class="sync-section-head">
         <div>
+          <div class="sync-section-title">Google Drive同期</div>
+          <div class="sync-section-sub">スマホとPCで同じデータを使う</div>
+        </div>
+        <span id="drive-sync-status">未接続</span>
+      </div>
+      <div class="sync-field">
+        <label for="google-client-id">GoogleクライアントID</label>
+        <input id="google-client-id" class="st-input" placeholder="1234567890-xxxx.apps.googleusercontent.com">
+      </div>
+      <div class="sync-actions two">
+        <button class="btn-secondary" type="button" id="google-login-btn">Googleログイン</button>
+        <button class="btn-primary" type="button" id="drive-sync-now-btn">今すぐ同期</button>
+      </div>
+      <button class="btn-secondary" type="button" id="save-google-settings-btn">同期設定を保存</button>
+    </div>
+
+    <div class="sync-section">
+      <div class="sync-section-head">
+        <div>
           <div class="sync-section-title">データ引き継ぎ</div>
           <div class="sync-section-sub">スマホ変更・別端末用</div>
         </div>
@@ -275,6 +294,6 @@
   </div>
 </div>
 
-<script src="app.js?v=23"></script>
+<script src="app.js?v=24"></script>
 </body>
 </html>

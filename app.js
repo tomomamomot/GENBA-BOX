@@ -1,6 +1,8 @@
 
 const STORE_KEY = 'genba-box-v2';
 const OLD_STORE_KEY = 'shokunin3';
+const DRIVE_SYNC_FILE = 'genba-box-sync.json';
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
 const DEFAULT_EXPENSE_ITEMS = ['交通費', '駐車場代', '宿泊費', 'ガソリン代', '資材代', 'その他'];
 const DEFAULT_SETTINGS = {
   name: '', address: '', tel: '', companyName: '', bank: '', branch: '', accountNo: '', accountName: '',
@@ -22,6 +24,8 @@ let isDayModalOpen = false;
 let activeDatePickerInput = null;
 let datePickerValue = selectedDate;
 let datePickerCursor = startOfMonth(new Date());
+let googleTokenClient = null;
+let googleAccessToken = '';
 
 function loadState() {
   try {
@@ -419,7 +423,9 @@ function renderSyncScreen() {
   const sub = document.getElementById('sync-sub'); if (sub) sub.textContent = '出力と引き継ぎ';
   const calendarCount = document.getElementById('calendar-export-count'); if (calendarCount) calendarCount.textContent = `${month.length}件`;
   const backupStatus = document.getElementById('backup-status'); if (backupStatus) backupStatus.textContent = `${state.entries.length}予定`;
-  const log = document.getElementById('sync-log'); if (log && !log.textContent) log.textContent = '今月分をGoogleカレンダー用ファイルで出力できます';
+  const clientInput = document.getElementById('google-client-id'); if (clientInput && !clientInput.value) clientInput.value = state.settings.googleClientId || '';
+  const driveStatus = document.getElementById('drive-sync-status'); if (driveStatus) driveStatus.textContent = googleAccessToken ? 'ログイン済み' : (state.settings.googleClientId ? '設定済み' : '未設定');
+  const log = document.getElementById('sync-log'); if (log && !log.textContent) log.textContent = 'Google Drive同期を使うにはクライアントIDを保存してからログインしてください';
 }
 function renderReceiptScreen() {
   const sub = document.getElementById('receipt-sub'); if (sub) sub.textContent = `${state.receipts?.length || 0}件`;
@@ -659,9 +665,153 @@ function saveGoogleSettings() {
   state.settings.googleClientId = document.getElementById('google-client-id')?.value.trim() || '';
   state.settings.googleCalendarId = document.getElementById('google-calendar-id')?.value.trim() || 'primary';
   state.settings.googleStoreMode = document.getElementById('google-store-mode')?.value || 'local';
+  state.settings.updatedAt = new Date().toISOString();
   saveState(); renderAll(); setSyncLog('Google設定を保存しました');
 }
 function setSyncLog(message) { const log = document.getElementById('sync-log'); if (log) log.textContent = message; }
+function localModifiedAt(targetState = state) {
+  const dates = [
+    targetState.settings?.updatedAt,
+    ...(targetState.entries || []).flatMap((entry) => [entry.updatedAt, entry.createdAt]),
+    ...(targetState.receipts || []).flatMap((receipt) => [receipt.updatedAt, receipt.importedAt]),
+  ].filter(Boolean).map((value) => Date.parse(value)).filter(Number.isFinite);
+  return dates.length ? new Date(Math.max(...dates)).toISOString() : new Date(0).toISOString();
+}
+function syncPayload() {
+  return { app: 'GENBA BOX', version: 2, syncedAt: new Date().toISOString(), modifiedAt: localModifiedAt(), state: normalizeState(state) };
+}
+function loadGoogleIdentity() {
+  if (window.google?.accounts?.oauth2) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector('script[data-google-identity]');
+    if (existing) { existing.addEventListener('load', resolve, { once: true }); existing.addEventListener('error', reject, { once: true }); return; }
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.dataset.googleIdentity = 'true';
+    script.onload = resolve;
+    script.onerror = () => reject(new Error('Googleログインの読み込みに失敗しました'));
+    document.head.appendChild(script);
+  });
+}
+async function getDriveToken(prompt = '') {
+  const clientId = document.getElementById('google-client-id')?.value.trim() || state.settings.googleClientId;
+  if (!clientId) throw new Error('GoogleクライアントIDを入力して保存してください');
+  await loadGoogleIdentity();
+  return new Promise((resolve, reject) => {
+    googleTokenClient = window.google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: DRIVE_SCOPE,
+      callback: (response) => {
+        if (response.error) { reject(new Error(response.error)); return; }
+        googleAccessToken = response.access_token;
+        const status = document.getElementById('drive-sync-status'); if (status) status.textContent = 'ログイン済み';
+        resolve(googleAccessToken);
+      },
+    });
+    googleTokenClient.requestAccessToken({ prompt });
+  });
+}
+async function driveFetch(url, options = {}, retry = true) {
+  const token = googleAccessToken || await getDriveToken('consent');
+  const response = await fetch(url, { ...options, headers: { ...(options.headers || {}), Authorization: `Bearer ${token}` } });
+  if (response.status === 401 && retry) {
+    googleAccessToken = '';
+    await getDriveToken('consent');
+    return driveFetch(url, options, false);
+  }
+  if (!response.ok) throw new Error(await response.text() || `Google Driveエラー ${response.status}`);
+  return response;
+}
+async function findDriveSyncFile() {
+  const params = new URLSearchParams({
+    spaces: 'appDataFolder',
+    fields: 'files(id,name,modifiedTime)',
+    q: `name='${DRIVE_SYNC_FILE}' and 'appDataFolder' in parents and trashed=false`,
+  });
+  const response = await driveFetch(`https://www.googleapis.com/drive/v3/files?${params.toString()}`);
+  const data = await response.json();
+  return data.files?.[0] || null;
+}
+function multipartBody(metadata, content) {
+  const boundary = `genba_box_${Date.now()}`;
+  const body = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${content}\r\n--${boundary}--`;
+  return { boundary, body };
+}
+async function createDriveSyncFile(content) {
+  const { boundary, body } = multipartBody({ name: DRIVE_SYNC_FILE, parents: ['appDataFolder'], mimeType: 'application/json' }, content);
+  const response = await driveFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,modifiedTime', {
+    method: 'POST',
+    headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
+    body,
+  });
+  return response.json();
+}
+async function updateDriveSyncFile(fileId, content) {
+  const response = await driveFetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media&fields=id,modifiedTime`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json; charset=UTF-8' },
+    body: content,
+  });
+  return response.json();
+}
+async function readDriveSyncFile(fileId) {
+  const response = await driveFetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`);
+  return response.json();
+}
+function newerByDate(a, b, dateKeys) {
+  const aTime = Math.max(...dateKeys.map((key) => Date.parse(a?.[key] || '')).filter(Number.isFinite), 0);
+  const bTime = Math.max(...dateKeys.map((key) => Date.parse(b?.[key] || '')).filter(Number.isFinite), 0);
+  return aTime >= bTime ? a : b;
+}
+function mergeById(localItems = [], remoteItems = [], dateKeys = ['updatedAt', 'createdAt']) {
+  const map = new Map();
+  localItems.forEach((item) => map.set(item.id, item));
+  remoteItems.forEach((item) => map.set(item.id, map.has(item.id) ? newerByDate(map.get(item.id), item, dateKeys) : item));
+  return [...map.values()];
+}
+function mergeDriveState(remotePayload) {
+  const remoteState = normalizeState(remotePayload.state || remotePayload);
+  const remoteSettingsTime = Date.parse(remoteState.settings?.updatedAt || '') || 0;
+  const localSettingsTime = Date.parse(state.settings?.updatedAt || '') || 0;
+  const settings = remoteSettingsTime > localSettingsTime ? remoteState.settings : state.settings;
+  return normalizeState({
+    settings,
+    entries: mergeById(state.entries, remoteState.entries),
+    receipts: mergeById(state.receipts || [], remoteState.receipts || [], ['updatedAt', 'importedAt']),
+  });
+}
+async function loginGoogleDrive() {
+  try {
+    saveGoogleSettings();
+    await getDriveToken('consent');
+    setSyncLog('Googleログインしました。今すぐ同期できます');
+  } catch (error) {
+    setSyncLog(error.message || 'Googleログインに失敗しました');
+  }
+}
+async function syncGoogleDrive() {
+  try {
+    saveGoogleSettings();
+    setSyncLog('Google Driveと同期中です...');
+    await getDriveToken(googleAccessToken ? '' : 'consent');
+    const file = await findDriveSyncFile();
+    if (!file) {
+      await createDriveSyncFile(JSON.stringify(syncPayload(), null, 2));
+      setSyncLog('この端末のデータをGoogle Driveに保存しました');
+      return;
+    }
+    const remotePayload = await readDriveSyncFile(file.id);
+    state = mergeDriveState(remotePayload);
+    saveState();
+    await updateDriveSyncFile(file.id, JSON.stringify(syncPayload(), null, 2));
+    renderAll();
+    setSyncLog(`同期しました。予定 ${state.entries.length}件`);
+  } catch (error) {
+    setSyncLog(error.message || 'Google Drive同期に失敗しました');
+  }
+}
 function downloadText(filename, text, type) {
   const blob = new Blob([text], { type });
   const link = document.createElement('a');
@@ -783,7 +933,7 @@ function saveSettings() {
     overtime: document.getElementById('tgl-sales-overtime')?.classList.contains('on') !== false,
     expenses: document.getElementById('tgl-sales-expenses')?.classList.contains('on') === true,
   };
-  state.settings = { ...state.settings, name: document.getElementById('st-name').value.trim(), address: document.getElementById('st-addr').value.trim(), tel: document.getElementById('st-tel').value.trim(), companyName: document.getElementById('st-co').value.trim(), bank: document.getElementById('st-bank').value.trim(), branch: document.getElementById('st-branch').value.trim(), accountNo: document.getElementById('st-accno').value.trim(), accountName: document.getElementById('st-accname').value.trim(), invoiceNo: document.getElementById('st-invno').value.trim(), invoiceEnabled: document.getElementById('tgl-inv').classList.contains('on'), showSubcontract: document.getElementById('tgl-subcontract')?.classList.contains('on') !== false, salesTotalParts, taxRate: num(document.getElementById('st-tax').value || 10), defaultDayRate: 0, defaultNightRate: 0, defaultOtRate: 0, companyRates, companies: companyRates.map((item) => item.name), expenseItems: linesToObjects(document.getElementById('st-expenses').value, expenseItems()) };
+  state.settings = { ...state.settings, name: document.getElementById('st-name').value.trim(), address: document.getElementById('st-addr').value.trim(), tel: document.getElementById('st-tel').value.trim(), companyName: document.getElementById('st-co').value.trim(), bank: document.getElementById('st-bank').value.trim(), branch: document.getElementById('st-branch').value.trim(), accountNo: document.getElementById('st-accno').value.trim(), accountName: document.getElementById('st-accname').value.trim(), invoiceNo: document.getElementById('st-invno').value.trim(), invoiceEnabled: document.getElementById('tgl-inv').classList.contains('on'), showSubcontract: document.getElementById('tgl-subcontract')?.classList.contains('on') !== false, salesTotalParts, taxRate: num(document.getElementById('st-tax').value || 10), defaultDayRate: 0, defaultNightRate: 0, defaultOtRate: 0, companyRates, companies: companyRates.map((item) => item.name), expenseItems: linesToObjects(document.getElementById('st-expenses').value, expenseItems()), updatedAt: new Date().toISOString() };
   state.entries = state.entries.map((entry) => { const nextExpenses = {}; expenseItems().forEach((item) => { nextExpenses[item.id] = num(entry.expenses?.[item.id]); }); return { ...entry, expenses: nextExpenses }; });
   saveState(); renderAll(); showSaveFeedback('設定を保存しました');
 }
@@ -836,6 +986,8 @@ function bindEvents() {
   ['st-company-new', 'st-company-day-new', 'st-company-night-new', 'st-company-ot-new'].forEach((id) => document.getElementById(id)?.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); addCompanyPreset(); } }));
   document.getElementById('st-expense-new')?.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); addSettingListItem('st-expenses', 'st-expense-new'); } });
   document.getElementById('save-google-settings-btn')?.addEventListener('click', saveGoogleSettings);
+  document.getElementById('google-login-btn')?.addEventListener('click', loginGoogleDrive);
+  document.getElementById('drive-sync-now-btn')?.addEventListener('click', syncGoogleDrive);
   document.getElementById('google-export-month-btn')?.addEventListener('click', exportMonthCalendarIcs);
   document.getElementById('google-open-selected-day-btn')?.addEventListener('click', openSelectedDayGoogleCalendar);
   document.getElementById('backup-export-btn')?.addEventListener('click', exportBackupJson);
