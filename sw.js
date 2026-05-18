@@ -1,4 +1,4 @@
-const CACHE = 'ninq-v38';
+const CACHE = 'ninq-v39';
 const ENHANCEMENT_SCRIPTS = [
   '<script src="brand.js?v=34"></script>',
   '<script src="report.js?v=30"></script>',
@@ -8,7 +8,7 @@ const ENHANCEMENT_SCRIPTS = [
   '<script src="navigation-controls.js?v=37"></script>',
   '<script src="ui-preferences.js?v=20"></script>',
 ];
-const ASSETS = ['./', './index.html', './styles.css?v=16', './app.js?v=16', './brand.js?v=34', './report.js?v=30', './calendar-layout.js?v=24', './range-entries.js?v=27', './calendar-connections.js?v=32', './navigation-controls.js?v=37', './ui-preferences.js?v=20', './manifest.json?v=33', './ninq-logo.svg?v=33', './icon-192.png?v=33', './icon-512.png?v=33', './apple-touch-icon.png?v=33'];
+const ASSETS = ['./', './index.html', './styles.css?v=17', './app.js?v=16', './brand.js?v=34', './report.js?v=30', './calendar-layout.js?v=24', './range-entries.js?v=27', './calendar-connections.js?v=32', './navigation-controls.js?v=37', './ui-preferences.js?v=20', './manifest.json?v=33', './ninq-logo.svg?v=33', './icon-192.png?v=33', './icon-512.png?v=33', './apple-touch-icon.png?v=33'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
