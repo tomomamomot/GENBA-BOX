@@ -132,6 +132,7 @@ input[type="number"]{appearance:textfield;-moz-appearance:textfield}
 .st-section{overflow:hidden}.wide-section{padding:0}.st-row{display:flex;align-items:center;gap:10px;padding:12px 14px;border-top:1px solid var(--line)}.st-row:first-child{border-top:none}.st-label{width:110px;font-size:14px;font-weight:800;flex-shrink:0}.st-input,.st-select{background:#fafcff}
 .pad-field{padding:14px}
 .save-wrap{padding:4px 16px 20px}
+#sc-st .save-wrap{position:sticky;bottom:0;z-index:55;margin-top:12px;padding:12px 16px calc(12px + var(--safe-bot));background:linear-gradient(180deg,rgba(238,243,248,.72),var(--bg) 34%);border-top:1px solid var(--line)}
 .toggle{width:48px;height:28px;border:none;background:#d4dbe6;border-radius:999px;position:relative;flex-shrink:0}.toggle::after{content:'';position:absolute;top:4px;left:4px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 4px rgba(0,0,0,.15)}.toggle.on{background:var(--accent)}.toggle.on::after{left:24px}
 .empty{text-align:center;padding:48px 20px;color:var(--sub)}.empty .icon{font-size:44px;margin-bottom:10px}.empty p{margin-top:6px;font-size:14px}
 .hidden{display:none!important}

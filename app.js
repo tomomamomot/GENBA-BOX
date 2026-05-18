@@ -943,7 +943,25 @@ function saveSettings() {
   state.entries = state.entries.map((entry) => { const nextExpenses = {}; expenseItems().forEach((item) => { nextExpenses[item.id] = num(entry.expenses?.[item.id]); }); return { ...entry, expenses: nextExpenses }; });
   saveState(); renderAll(); showSaveFeedback('設定を保存しました');
 }
-function deleteEntry(id) { state.entries = state.entries.filter((entry) => entry.id !== id); saveState(); renderAll(); }
+function deleteEntry(id) {
+  const target = state.entries.find((entry) => entry.id === id);
+  if (!target) return;
+  state.entries = state.entries.filter((entry) => entry.id !== id);
+  if (target.rangeGroupId) {
+    const groupItems = state.entries.filter((entry) => entry.rangeGroupId === target.rangeGroupId);
+    const nextExcluded = [...new Set([
+      ...(target.excludedDates || []),
+      target.date,
+      ...groupItems.flatMap((entry) => entry.excludedDates || []),
+    ])].sort();
+    state.entries = state.entries.map((entry) => (
+      entry.rangeGroupId === target.rangeGroupId
+        ? { ...entry, excludedDates: nextExcluded, updatedAt: new Date().toISOString() }
+        : entry
+    ));
+  }
+  saveState(); renderAll();
+}
 function gcalEntry(id) {
   const entry = state.entries.find((item) => item.id === id); if (!entry) return;
   window.open(googleCalendarUrl(entry), '_blank');

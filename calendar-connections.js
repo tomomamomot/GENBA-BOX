@@ -81,7 +81,7 @@
     const company = String(entry?.company || '').trim();
     const site = String(entry?.site || '').trim();
     if (!company || !site) return '';
-    return [entry.type || 'self', entry.shift || 'day', company, site].join('\u001f');
+    return [entry.type || 'self', entry.shift || 'day', company, site, entry.workerName || ''].join('\u001f');
   }
 
   function sameWorkBand(a, b) {
@@ -134,10 +134,10 @@
       #sc-cal .task-stack { overflow: visible !important; }
       #sc-cal .task-stack {
         display: grid !important;
-        grid-template-rows: repeat(4, minmax(0, 18px));
-        gap: 3px;
+        grid-template-rows: repeat(4, minmax(0, 16px));
+        gap: 2px;
         align-content: start;
-        height: 78px;
+        height: 70px;
         position: relative;
       }
       #sc-cal .cal-task,
@@ -151,7 +151,11 @@
         position: relative;
         z-index: 3;
         width: calc((100% + 13px) * var(--span, 1) - 13px);
-        min-height: 18px;
+        display: flex !important;
+        align-items: center;
+        height: 16px;
+        min-height: 16px;
+        max-height: 16px;
         white-space: nowrap !important;
         overflow: hidden !important;
         text-overflow: clip !important;
@@ -178,13 +182,15 @@
       }
       @media (max-width: 480px) {
         #sc-cal .task-stack {
-          grid-template-rows: repeat(4, minmax(0, 15px));
+          grid-template-rows: repeat(4, minmax(0, 14px));
           gap: 2px;
-          height: 66px;
+          height: 62px;
         }
         #sc-cal .cal-task {
           width: calc((100% + 7px) * var(--span, 1) - 7px);
-          min-height: 15px;
+          height: 14px;
+          min-height: 14px;
+          max-height: 14px;
           line-height: 1.08;
         }
         #sc-cal .cal-task,
