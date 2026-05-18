@@ -74,6 +74,7 @@ button{cursor:pointer}
 .field{margin-bottom:15px}
 .field label{display:block;margin-bottom:6px;font-size:16px;color:var(--sub);font-weight:800}
 .field input,.field select,.field textarea,.st-input,.st-select{width:100%;border:1px solid var(--line);border-radius:13px;padding:14px 15px;background:#fff;color:var(--ink)}
+.date-picker-input{cursor:pointer}
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button{appearance:none;-webkit-appearance:none;margin:0}
 input[type="number"]{appearance:textfield;-moz-appearance:textfield}
@@ -86,6 +87,25 @@ input[type="number"]{appearance:textfield;-moz-appearance:textfield}
 .type-sel{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:16px}
 .type-btn{border:1px solid var(--line);background:#fff;color:var(--sub);padding:11px 8px;border-radius:12px;font-size:14px;font-weight:800;text-align:center}
 .type-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.range-exclude-wrap{margin:-4px 0 15px}
+.range-exclude-title{font-size:13px;font-weight:900;color:var(--sub);margin-bottom:8px}
+.range-exclude-list{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px}
+.range-exclude-chip{position:relative;flex:0 0 auto;border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--ink);padding:9px 11px;font-size:13px;font-weight:850;white-space:nowrap}
+.range-exclude-chip.checked{background:#fff0f0;border-color:#f2a7a7;color:var(--red)}
+.range-exclude-chip input{position:absolute;opacity:0;pointer-events:none}
+.date-picker-bg{display:none;position:fixed;inset:0;background:rgba(15,23,42,.38);align-items:center;justify-content:center;padding:18px;z-index:520}
+.date-picker-bg.open{display:flex}
+.date-picker{width:min(100%,360px);background:#fff;border-radius:22px;box-shadow:0 22px 48px rgba(15,23,42,.24);padding:14px}
+.date-picker-head{display:grid;grid-template-columns:42px 1fr 42px;align-items:center;gap:8px;margin-bottom:10px}
+.date-picker-head button{height:40px;border:none;border-radius:12px;background:#eef3fa;color:var(--ink);font-size:26px;font-weight:800}
+.date-picker-head strong{text-align:center;font-size:18px;font-weight:900}
+.date-picker-week,.date-picker-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.date-picker-week span{text-align:center;color:var(--sub);font-size:12px;font-weight:900;padding:4px 0}
+.date-picker-day{height:39px;border:none;border-radius:12px;background:#f6f8fb;color:var(--ink);font-size:15px;font-weight:850}
+.date-picker-day.other{color:#9aa3af;background:#fafbfc}
+.date-picker-day.selected{background:var(--accent);color:#fff}
+.date-picker-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:13px}
+.date-picker-actions .btn-primary,.date-picker-actions .btn-secondary{padding:12px 14px}
 .company-picks,.inline-picks{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .pick-chip,.mini-chip{border:none;border-radius:999px;background:#edf3fb;color:var(--accent);padding:7px 11px;font-size:12px;font-weight:800}
 .btn-primary,.btn-secondary,.btn-gold{width:100%;border:none;border-radius:14px;padding:15px 16px;font-size:17px;font-weight:900}

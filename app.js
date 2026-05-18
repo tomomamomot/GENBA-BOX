@@ -18,6 +18,9 @@ let selectedCompany = '';
 let activeScreen = 'cal';
 let editingId = null;
 let isDayModalOpen = false;
+let activeDatePickerInput = null;
+let datePickerValue = selectedDate;
+let datePickerCursor = startOfMonth(new Date());
 
 function loadState() {
   try {
@@ -66,7 +69,9 @@ function normalizeEntry(entry) {
     company: entry.company || '', site: entry.site || '', workerName: entry.workerName || '', qty: num(entry.qty || 1),
     unitRate: num(entry.unitRate || 0), otHours: num(entry.otHours || 0), otRate: num(entry.otRate || 0),
     expenses: entry.expenses && typeof entry.expenses === 'object' ? entry.expenses : {}, notes: entry.notes || '',
-    invoiceMode: entry.invoiceMode || 'with', createdAt: entry.createdAt || new Date().toISOString(), updatedAt: entry.updatedAt || new Date().toISOString()
+    invoiceMode: entry.invoiceMode || 'with', rangeGroupId: entry.rangeGroupId || '', rangeStart: entry.rangeStart || '', rangeEnd: entry.rangeEnd || '',
+    excludedDates: Array.isArray(entry.excludedDates) ? entry.excludedDates.filter(Boolean) : [],
+    createdAt: entry.createdAt || new Date().toISOString(), updatedAt: entry.updatedAt || new Date().toISOString()
   };
 }
 function migrateLegacy(oldData) {
@@ -103,6 +108,60 @@ function monthKey(dateOrString) { const d = typeof dateOrString === 'string' ? f
 function fmtMonth(date) { return `${date.getFullYear()}年${date.getMonth() + 1}月`; }
 function fmtDateJP(ymd) { const d = fromYmd(ymd); return `${d.getMonth() + 1}月${d.getDate()}日`; }
 function weekdayLabel(ymd) { return ['日', '月', '火', '水', '木', '金', '土'][fromYmd(ymd).getDay()]; }
+function dateList(startDate, endDate) {
+  if (!startDate || !endDate || fromYmd(endDate) < fromYmd(startDate)) return [];
+  const dates = [];
+  const current = fromYmd(startDate), last = fromYmd(endDate);
+  while (current <= last) {
+    dates.push(toYmd(current));
+    current.setDate(current.getDate() + 1);
+  }
+  return dates;
+}
+function shortDateLabel(ymd) {
+  return `${fmtDateJP(ymd)}(${weekdayLabel(ymd)})`;
+}
+function sortedExpenseText(expenses) {
+  return JSON.stringify(Object.entries(expenses || {}).sort(([a], [b]) => a.localeCompare(b)));
+}
+function entrySignature(entry) {
+  return [
+    entry.type || 'self', entry.shift || 'day', entry.company || '', entry.site || '', entry.workerName || '',
+    num(entry.qty), num(entry.unitRate), num(entry.otHours), num(entry.otRate), entry.notes || '', sortedExpenseText(entry.expenses)
+  ].join('\u001f');
+}
+function contiguousLegacyGroup(entry) {
+  const matching = state.entries
+    .filter((item) => item.createdAt === entry.createdAt && entrySignature(item) === entrySignature(entry))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (matching.length <= 1) return [entry];
+  const index = matching.findIndex((item) => item.id === entry.id);
+  if (index < 0) return [entry];
+  let start = index, end = index;
+  while (start > 0 && adjacentYmd(matching[start - 1].date, 1) === matching[start].date) start -= 1;
+  while (end < matching.length - 1 && adjacentYmd(matching[end].date, 1) === matching[end + 1].date) end += 1;
+  return matching.slice(start, end + 1);
+}
+function entryRangeGroup(entry) {
+  if (!entry) return { entries: [], ids: new Set(), start: selectedDate, end: selectedDate, excludedDates: [], groupId: '' };
+  let entries = [entry];
+  if (entry.rangeGroupId) {
+    entries = state.entries.filter((item) => item.rangeGroupId === entry.rangeGroupId).sort((a, b) => a.date.localeCompare(b.date));
+  } else {
+    entries = contiguousLegacyGroup(entry);
+  }
+  const first = entries[0] || entry;
+  const last = entries[entries.length - 1] || entry;
+  const start = entry.rangeStart || first.date || entry.date;
+  const end = entry.rangeEnd || last.date || entry.date;
+  const included = new Set(entries.map((item) => item.date));
+  const excluded = entry.excludedDates?.length ? entry.excludedDates : dateList(start, end).filter((date) => !included.has(date));
+  return { entries, ids: new Set(entries.map((item) => item.id)), start, end, excludedDates: excluded, groupId: entry.rangeGroupId || '' };
+}
+function editingGroupIds() {
+  const entry = editingId ? state.entries.find((item) => item.id === editingId) : null;
+  return entryRangeGroup(entry).ids;
+}
 function expenseItems() { return normalizeExpenseItems(state.settings.expenseItems); }
 function companyOptions() { return [...new Set([...companyPresets().map((item) => item.name), ...state.settings.companies, ...state.entries.map((entry) => entry.company).filter(Boolean)])].sort((a, b) => a.localeCompare(b, 'ja')); }
 function companyPresets() { return normalizeCompanyRates(state.settings.companyRates, state.settings.companies); }
@@ -381,11 +440,89 @@ function renderSettings() {
 function createDefaultEntry(type, date) {
   return { id: '', date, type, shift: 'day', company: '', site: '', workerName: '', qty: 1, unitRate: '', otHours: 0, otRate: '', expenses: Object.fromEntries(expenseItems().map((item) => [item.id, 0])), notes: '', invoiceMode: 'with' };
 }
+function renderRangeExclusions(selectedDates = null) {
+  const wrap = document.getElementById('range-exclude-wrap');
+  if (!wrap) return;
+  const startDate = document.getElementById('f-date')?.value;
+  const endDate = document.getElementById('f-end-date')?.value || startDate;
+  const previous = selectedDates || [...wrap.querySelectorAll('[data-range-exclude]:checked')].map((input) => input.value);
+  const excluded = new Set(previous);
+  const dates = dateList(startDate, endDate);
+  if (dates.length <= 1) {
+    wrap.innerHTML = '';
+    return;
+  }
+  wrap.innerHTML = `
+    <div class="range-exclude-title">除外する日</div>
+    <div class="range-exclude-list">
+      ${dates.map((date) => `<label class="range-exclude-chip ${excluded.has(date) ? 'checked' : ''}"><input type="checkbox" data-range-exclude value="${date}" ${excluded.has(date) ? 'checked' : ''}>${escapeHtml(shortDateLabel(date))}</label>`).join('')}
+    </div>`;
+}
+function ensureDatePicker() {
+  if (document.getElementById('date-picker-bg')) return;
+  const picker = document.createElement('div');
+  picker.id = 'date-picker-bg';
+  picker.className = 'date-picker-bg';
+  document.body.appendChild(picker);
+}
+function renderDatePicker() {
+  const picker = document.getElementById('date-picker-bg');
+  if (!picker) return;
+  const monthStart = startOfMonth(datePickerCursor);
+  const first = new Date(monthStart);
+  first.setDate(first.getDate() - first.getDay());
+  const cells = [];
+  for (let i = 0; i < 42; i += 1) {
+    const date = new Date(first);
+    date.setDate(first.getDate() + i);
+    const ymd = toYmd(date);
+    const classes = ['date-picker-day'];
+    if (date.getMonth() !== datePickerCursor.getMonth()) classes.push('other');
+    if (ymd === datePickerValue) classes.push('selected');
+    cells.push(`<button class="${classes.join(' ')}" type="button" data-date-pick="${ymd}">${date.getDate()}</button>`);
+  }
+  picker.innerHTML = `
+    <div class="date-picker">
+      <div class="date-picker-head">
+        <button type="button" data-date-picker-prev>‹</button>
+        <strong>${fmtMonth(datePickerCursor)}</strong>
+        <button type="button" data-date-picker-next>›</button>
+      </div>
+      <div class="date-picker-week">${['日', '月', '火', '水', '木', '金', '土'].map((day) => `<span>${day}</span>`).join('')}</div>
+      <div class="date-picker-grid">${cells.join('')}</div>
+      <div class="date-picker-actions">
+        <button class="btn-secondary" type="button" data-date-picker-cancel>キャンセル</button>
+        <button class="btn-primary" type="button" data-date-picker-ok>OK</button>
+      </div>
+    </div>`;
+}
+function openDatePicker(input) {
+  ensureDatePicker();
+  activeDatePickerInput = input;
+  datePickerValue = input.value || selectedDate || toYmd(new Date());
+  datePickerCursor = startOfMonth(fromYmd(datePickerValue));
+  renderDatePicker();
+  document.getElementById('date-picker-bg')?.classList.add('open');
+}
+function closeDatePicker() {
+  document.getElementById('date-picker-bg')?.classList.remove('open');
+  activeDatePickerInput = null;
+}
+function commitDatePicker() {
+  if (activeDatePickerInput) {
+    activeDatePickerInput.value = datePickerValue;
+    activeDatePickerInput.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  closeDatePicker();
+}
 function openModal(type, id = null) {
   if (type === 'sub' && !subcontractEnabled()) type = 'self';
   editingId = id;
   const entry = id ? state.entries.find((item) => item.id === id) : createDefaultEntry(type, selectedDate);
   if (!entry) return;
+  const editRange = id ? entryRangeGroup(entry) : null;
+  const startValue = editRange?.start || entry.date;
+  const endValue = editRange?.end || entry.date;
   const isSub = entry.type === 'sub' || type === 'sub';
   const expenseFields = expenseItems().map((item) => `<div class="field"><label>${escapeHtml(item.label)}</label><input type="number" min="0" step="1" data-expense-id="${item.id}" value="${num(entry.expenses?.[item.id]) || ''}"></div>`).join('');
   const typeButtons = `<button class="type-btn ${entry.type === 'self' ? 'active' : ''}" data-entry-type="self" type="button">自分</button>${subcontractEnabled() || entry.type === 'sub' ? `<button class="type-btn ${entry.type === 'sub' ? 'active' : ''}" data-entry-type="sub" type="button">外注職人</button>` : ''}`;
@@ -393,7 +530,24 @@ function openModal(type, id = null) {
   const companyOptionsHtml = companyChoices.map((name) => `<option value="${escapeHtml(name)}" ${name === entry.company ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('');
   const companyPickBlock = `<div class="company-combo"><select id="f-company-select"><option value="">選択</option>${companyOptionsHtml}</select><input id="f-company" value="${escapeHtml(entry.company)}" placeholder="自由入力できます"></div>`;
   document.getElementById('modal-title').textContent = id ? '予定を編集' : '予定を追加';
-  document.getElementById('modal-body').innerHTML = `<div class="type-sel">${typeButtons}</div><form id="entry-form"><div class="field-r2"><div class="field"><label>開始日</label><input id="f-date" type="date" value="${escapeHtml(entry.date)}"></div><div class="field"><label>終了日</label><input id="f-end-date" type="date" value="${escapeHtml(entry.date)}"></div></div>${isSub ? `<div class="field" id="worker-wrap"><label>職人名</label><input id="f-worker" value="${escapeHtml(entry.workerName)}" placeholder="佐藤大工"></div>` : `<div class="field hidden" id="worker-wrap"><label>職人名</label><input id="f-worker" value="${escapeHtml(entry.workerName)}"></div>`}<div class="field"><label>会社名</label>${companyPickBlock}</div><div class="field"><label>現場名</label><input id="f-site" value="${escapeHtml(entry.site)}" placeholder="空欄でも保存できます"></div><div class="field-r2"><div class="field"><label>勤務区分</label><select id="f-shift"><option value="day" ${entry.shift === 'day' ? 'selected' : ''}>日勤</option><option value="night" ${entry.shift === 'night' ? 'selected' : ''}>夜勤</option><option value="trip" ${entry.shift === 'trip' ? 'selected' : ''}>出張</option></select></div><div class="field"><label>人工</label><input id="f-qty" type="number" min="0" step="0.5" value="${entry.qty}"></div></div><div class="field-r3"><div class="field"><label>単価</label><input id="f-rate" type="number" min="0" step="1" value="${rateFieldValue(entry.unitRate)}"></div><div class="field"><label>残業時間</label><input id="f-ot-hours" type="number" min="0" step="0.5" value="${num(entry.otHours) || ''}"></div><div class="field"><label>残業単価</label><input id="f-ot-rate" type="number" min="0" step="1" value="${rateFieldValue(entry.otRate)}"></div></div><div class="sec-hd" style="padding:0 0 8px">経費</div><div class="field-r2">${expenseFields}</div><div class="field"><label>メモ</label><textarea id="f-notes" placeholder="注意点やメモ">${escapeHtml(entry.notes)}</textarea></div><div class="btn-row entry-actions"><button class="btn-secondary" type="button" id="cancel-entry-btn">キャンセル</button><button class="btn-primary" type="submit">保存</button></div></form>`;
+  document.getElementById('modal-body').innerHTML = `
+    <div class="type-sel">${typeButtons}</div>
+    <form id="entry-form">
+      <div class="field-r2">
+        <div class="field"><label>開始日</label><input id="f-date" class="date-picker-input" type="text" inputmode="none" readonly data-date-picker value="${escapeHtml(startValue)}"></div>
+        <div class="field"><label>終了日</label><input id="f-end-date" class="date-picker-input" type="text" inputmode="none" readonly data-date-picker value="${escapeHtml(endValue)}"></div>
+      </div>
+      <div class="range-exclude-wrap" id="range-exclude-wrap"></div>
+      ${isSub ? `<div class="field" id="worker-wrap"><label>職人名</label><input id="f-worker" value="${escapeHtml(entry.workerName)}" placeholder="佐藤大工"></div>` : `<div class="field hidden" id="worker-wrap"><label>職人名</label><input id="f-worker" value="${escapeHtml(entry.workerName)}"></div>`}
+      <div class="field"><label>会社名</label>${companyPickBlock}</div>
+      <div class="field"><label>現場名</label><input id="f-site" value="${escapeHtml(entry.site)}" placeholder="空欄でも保存できます"></div>
+      <div class="field-r2"><div class="field"><label>勤務区分</label><select id="f-shift"><option value="day" ${entry.shift === 'day' ? 'selected' : ''}>日勤</option><option value="night" ${entry.shift === 'night' ? 'selected' : ''}>夜勤</option><option value="trip" ${entry.shift === 'trip' ? 'selected' : ''}>出張</option></select></div><div class="field"><label>人工</label><input id="f-qty" type="number" min="0" step="0.5" value="${entry.qty}"></div></div>
+      <div class="field-r3"><div class="field"><label>単価</label><input id="f-rate" type="number" min="0" step="1" value="${rateFieldValue(entry.unitRate)}"></div><div class="field"><label>残業時間</label><input id="f-ot-hours" type="number" min="0" step="0.5" value="${num(entry.otHours) || ''}"></div><div class="field"><label>残業単価</label><input id="f-ot-rate" type="number" min="0" step="1" value="${rateFieldValue(entry.otRate)}"></div></div>
+      <div class="sec-hd" style="padding:0 0 8px">経費</div><div class="field-r2">${expenseFields}</div>
+      <div class="field"><label>メモ</label><textarea id="f-notes" placeholder="注意点やメモ">${escapeHtml(entry.notes)}</textarea></div>
+      <div class="btn-row entry-actions"><button class="btn-secondary" type="button" id="cancel-entry-btn">キャンセル</button><button class="btn-primary" type="submit">保存</button></div>
+    </form>`;
+  renderRangeExclusions(editRange?.excludedDates || []);
   document.getElementById('modal-bg').classList.add('open');
 }
 function closeModal() {
@@ -416,7 +570,8 @@ function collectEntryForm() {
   const endDate = document.getElementById('f-end-date')?.value || startDate;
   if (!startDate) throw new Error('開始日を入力してください');
   if (fromYmd(endDate) < fromYmd(startDate)) throw new Error('終了日は開始日以降にしてください');
-  const createdAt = editingId ? (state.entries.find((item) => item.id === editingId)?.createdAt || new Date().toISOString()) : new Date().toISOString();
+  const original = editingId ? state.entries.find((item) => item.id === editingId) : null;
+  const createdAt = original?.createdAt || new Date().toISOString();
   const base = {
     type, shift: document.getElementById('f-shift').value,
     company: document.getElementById('f-company').value.trim(), site: document.getElementById('f-site').value.trim(), workerName: document.getElementById('f-worker').value.trim(),
@@ -424,13 +579,23 @@ function collectEntryForm() {
     expenses: {}, notes: document.getElementById('f-notes').value.trim(), invoiceMode: 'with', createdAt, updatedAt: new Date().toISOString()
   };
   document.querySelectorAll('[data-expense-id]').forEach((input) => { base.expenses[input.dataset.expenseId] = num(input.value); });
-  const dates = [];
-  const current = fromYmd(startDate), last = fromYmd(endDate);
-  while (current <= last) {
-    dates.push(toYmd(current));
-    current.setDate(current.getDate() + 1);
-  }
-  return dates.map((date, index) => ({ ...base, id: editingId && index === 0 ? editingId : crypto.randomUUID(), date, expenses: { ...base.expenses } }));
+  const excludedDates = [...document.querySelectorAll('[data-range-exclude]:checked')].map((input) => input.value);
+  const excluded = new Set(excludedDates);
+  const allDates = dateList(startDate, endDate);
+  const dates = allDates.filter((date) => !excluded.has(date));
+  if (!dates.length) throw new Error('登録する日がありません。除外日を減らしてください');
+  const isRange = allDates.length > 1;
+  const rangeGroupId = isRange ? (original?.rangeGroupId || crypto.randomUUID()) : '';
+  return dates.map((date) => ({
+    ...base,
+    id: editingId && original?.date === date ? editingId : crypto.randomUUID(),
+    date,
+    rangeGroupId,
+    rangeStart: isRange ? startDate : '',
+    rangeEnd: isRange ? endDate : '',
+    excludedDates: isRange ? excludedDates : [],
+    expenses: { ...base.expenses }
+  }));
 }
 function upsertEntry(entry) {
   state.entries = state.entries.filter((item) => item.id !== entry.id);
@@ -440,7 +605,8 @@ function upsertEntry(entry) {
 }
 function upsertEntries(entries) {
   const ids = new Set(entries.map((entry) => entry.id));
-  state.entries = state.entries.filter((item) => !ids.has(item.id));
+  const oldIds = editingId ? editingGroupIds() : new Set();
+  state.entries = state.entries.filter((item) => !ids.has(item.id) && !oldIds.has(item.id));
   state.entries.push(...entries);
   selectedDate = entries[0].date;
   cursor = startOfMonth(fromYmd(entries[0].date));
@@ -625,6 +791,14 @@ function bindEvents() {
   document.getElementById('tgl-subcontract')?.addEventListener('click', () => document.getElementById('tgl-subcontract').classList.toggle('on'));
   document.getElementById('modal-bg').addEventListener('click', (event) => { if (event.target.id === 'modal-bg') closeModal(); });
   document.addEventListener('click', (event) => {
+    if (event.target.id === 'date-picker-bg' || event.target.matches('[data-date-picker-cancel]')) { closeDatePicker(); return; }
+    if (event.target.matches('[data-date-picker-ok]')) { commitDatePicker(); return; }
+    if (event.target.matches('[data-date-picker-prev]')) { datePickerCursor = new Date(datePickerCursor.getFullYear(), datePickerCursor.getMonth() - 1, 1); renderDatePicker(); return; }
+    if (event.target.matches('[data-date-picker-next]')) { datePickerCursor = new Date(datePickerCursor.getFullYear(), datePickerCursor.getMonth() + 1, 1); renderDatePicker(); return; }
+    const datePick = event.target.closest('[data-date-pick]');
+    if (datePick) { datePickerValue = datePick.dataset.datePick; datePickerCursor = startOfMonth(fromYmd(datePickerValue)); renderDatePicker(); return; }
+    const datePickerInput = event.target.closest('[data-date-picker]');
+    if (datePickerInput) { openDatePicker(datePickerInput); return; }
     const removeCompanyPreset = event.target.closest('[data-remove-company-preset]');
     if (removeCompanyPreset) { const values = companyPresetValues().filter((_, index) => index !== Number(removeCompanyPreset.dataset.removeCompanyPreset)); writeCompanyPresetValues(values); renderCompanyPresetList(); return; }
     const removeSettingItem = event.target.closest('[data-remove-setting-item]');
@@ -671,6 +845,8 @@ function bindEvents() {
   });
 
   document.addEventListener('change', (event) => {
+    if (event.target.id === 'f-date' || event.target.id === 'f-end-date') { renderRangeExclusions(); return; }
+    if (event.target.matches('[data-range-exclude]')) { event.target.closest('.range-exclude-chip')?.classList.toggle('checked', event.target.checked); return; }
     if (event.target.id === 'f-company-select') { const input = document.getElementById('f-company'); if (input && event.target.value) { input.value = event.target.value; applyCompanyRate(event.target.value); } return; }
     if (event.target.matches('[data-receipt-category]')) { updateReceiptField(event.target.dataset.receiptCategory, { category: event.target.value, status: '確認済み' }); renderAll(); return; }
     if (event.target.matches('[data-receipt-date]')) { updateReceiptField(event.target.dataset.receiptDate, { date: event.target.value, status: '確認済み' }); return; }

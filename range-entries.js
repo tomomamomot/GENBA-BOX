@@ -4,7 +4,17 @@
   }
 
   function cloneForDate(entry, date, index) {
-    const next = { ...entry, id: index === 0 ? entry.id : `${entry.id}-${date}`, date, updatedAt: new Date().toISOString() };
+    const excludedDates = Array.isArray(entry.excludedDates) ? entry.excludedDates.filter(Boolean) : [];
+    const next = {
+      ...entry,
+      id: index === 0 ? entry.id : `${entry.id}-${date}`,
+      date,
+      rangeGroupId: entry.rangeGroupId || entry.id,
+      rangeStart: entry.date,
+      rangeEnd: entry.endDate,
+      excludedDates,
+      updatedAt: new Date().toISOString()
+    };
     delete next.endDate;
     return next;
   }
@@ -31,10 +41,14 @@
       const current = fromYmd(entry.date);
       const last = fromYmd(entry.endDate);
       let index = 0;
+      const excluded = new Set(Array.isArray(entry.excludedDates) ? entry.excludedDates : []);
       while (current <= last) {
-        nextEntries.push(cloneForDate(entry, toYmd(current), index));
+        const ymd = toYmd(current);
+        if (!excluded.has(ymd)) {
+          nextEntries.push(cloneForDate(entry, ymd, index));
+          index += 1;
+        }
         current.setDate(current.getDate() + 1);
-        index += 1;
       }
     });
 
