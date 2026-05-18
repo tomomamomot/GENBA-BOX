@@ -66,7 +66,7 @@ function normalizeReceipt(receipt) {
 function normalizeEntry(entry) {
   return {
     id: String(entry.id || crypto.randomUUID()), date: entry.date || toYmd(new Date()), type: entry.type || 'self', shift: entry.shift || 'day',
-    company: entry.company || '', site: entry.site || '', workerName: entry.workerName || '', qty: num(entry.qty || 1),
+    company: entry.company || '', site: entry.site || '', workerName: entry.workerName || '', qty: qtyValue(entry.qty),
     unitRate: num(entry.unitRate || 0), otHours: num(entry.otHours || 0), otRate: num(entry.otRate || 0),
     expenses: entry.expenses && typeof entry.expenses === 'object' ? entry.expenses : {}, notes: entry.notes || '',
     invoiceMode: entry.invoiceMode || 'with', rangeGroupId: entry.rangeGroupId || '', rangeStart: entry.rangeStart || '', rangeEnd: entry.rangeEnd || '',
@@ -89,7 +89,7 @@ function migrateLegacy(oldData) {
   migrated.entries = (oldData.entries || []).map((entry) => ({
     id: String(entry.id || crypto.randomUUID()), date: toYmd(new Date(entry.y, entry.m, entry.d)), type: entry.type || 'self',
     shift: entry.wt === 'night' ? 'night' : entry.wt === 'trip' ? 'trip' : 'day', company: entry.co || '', site: entry.site || '',
-    workerName: entry.subname || '', qty: num(entry.ninku || 1), unitRate: num(entry.tanka || 0),
+    workerName: entry.subname || '', qty: qtyValue(entry.ninku), unitRate: num(entry.tanka || 0),
     otHours: num(entry.oth || 0), otRate: num(entry.ottanka || 0),
     expenses: { exp1: num(entry.kotsu || 0), exp2: num(entry.parking || 0), exp3: num(entry.shuku || 0), exp4: num(entry.gas || 0), exp5: num(entry.zai || 0), exp6: num(entry.other || 0) },
     notes: entry.memo || '', invoiceMode: 'with', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
@@ -99,6 +99,9 @@ function migrateLegacy(oldData) {
 }
 function saveState(nextState = state) { localStorage.setItem(STORE_KEY, JSON.stringify(nextState)); }
 function num(value) { const n = Number(value); return Number.isFinite(n) ? n : 0; }
+function qtyValue(value, fallback = 1) { return value === '' || value === null || value === undefined ? fallback : num(value); }
+function roundTo(value, digits = 2) { const factor = 10 ** digits; return Math.round((num(value) + Number.EPSILON) * factor) / factor; }
+function qtyLabel(value) { return roundTo(value, 2).toLocaleString('ja-JP', { maximumFractionDigits: 2 }); }
 function yen(value, hidden = false) { return hidden ? '••••••' : `¥${Math.round(num(value)).toLocaleString('ja-JP')}`; }
 function escapeHtml(value) { return String(value || '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;'); }
 function toYmd(date) { const d = new Date(date); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
@@ -232,7 +235,7 @@ function guessReceiptCategory(name) {
 function monthEntries() { const key = monthKey(cursor); return state.entries.filter((entry) => monthKey(entry.date) === key).sort((a, b) => a.date.localeCompare(b.date)); }
 function dayEntries(ymd) { return state.entries.filter((entry) => entry.date === ymd).sort((a, b) => a.createdAt.localeCompare(b.createdAt)); }
 function calcEntry(entry) {
-  const qty = num(entry.qty || 1), unitRate = num(entry.unitRate), otHours = num(entry.otHours), otRate = num(entry.otRate);
+  const qty = qtyValue(entry.qty), unitRate = num(entry.unitRate), otHours = num(entry.otHours), otRate = num(entry.otRate);
   const labor = qty * unitRate, overtime = otHours * otRate;
   const expenses = expenseItems().reduce((sum, item) => sum + num(entry.expenses?.[item.id]), 0);
   return { qty, unitRate, otHours, otRate, labor, overtime, expenses, subtotal: labor + overtime + expenses };
@@ -325,9 +328,9 @@ function renderSummary() {
   });
   const hidden = !state.settings.showSales;
   document.getElementById('sum-grid').innerHTML = `
-    <div class="sum-card"><div class="sl">今月の人工</div><div class="sv green">${monthQty.toLocaleString('ja-JP')}</div></div>
+    <div class="sum-card"><div class="sl">今月の人工</div><div class="sv green">${qtyLabel(monthQty)}</div></div>
     <div class="sum-card"><div class="sl">今月の人工額</div><div class="sv ${hidden ? 'hidden-amount' : ''}">${yen(monthLaborAmount, hidden)}</div></div>
-    <div class="sum-card"><div class="sl">${cursor.getFullYear()}年の人工</div><div class="sv green">${yearQty.toLocaleString('ja-JP')}</div></div>
+    <div class="sum-card"><div class="sl">${cursor.getFullYear()}年の人工</div><div class="sv green">${qtyLabel(yearQty)}</div></div>
     <div class="sum-card"><div class="sl">${cursor.getFullYear()}年の人工額</div><div class="sv ${hidden ? 'hidden-amount' : ''}">${yen(yearLaborAmount, hidden)}</div></div>`;
 }
 function renderDayEntries() {
@@ -369,7 +372,7 @@ function renderSubScreen() {
   monthlySubs.forEach((entry) => {
     const name = entry.workerName || '名称未入力';
     if (!groups[name]) groups[name] = { days: 0, total: 0, companies: new Set(), entries: [] };
-    groups[name].days += num(entry.qty || 1); groups[name].total += calcEntry(entry).subtotal; groups[name].entries.push(entry); if (entry.company) groups[name].companies.add(entry.company);
+    groups[name].days += qtyValue(entry.qty); groups[name].total += calcEntry(entry).subtotal; groups[name].entries.push(entry); if (entry.company) groups[name].companies.add(entry.company);
   });
   const people = Object.entries(groups).sort((a, b) => b[1].total - a[1].total);
   const hidden = !state.settings.showSales;

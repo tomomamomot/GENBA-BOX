@@ -17,6 +17,9 @@
     const n = Number(value);
     return Number.isFinite(n) ? n : 0;
   }
+  function qtyValue(value, fallback = 1) {
+    return value === '' || value === null || value === undefined ? fallback : num(value);
+  }
 
   function toYmd(date) {
     const d = new Date(date);
@@ -46,7 +49,7 @@
   }
 
   function calcEntry(entry, items) {
-    const labor = num(entry.qty || 1) * num(entry.unitRate);
+    const labor = qtyValue(entry.qty) * num(entry.unitRate);
     const overtime = num(entry.otHours) * num(entry.otRate);
     const expenses = items.reduce((sum, item) => sum + num(entry.expenses?.[item.id]), 0);
     return { labor, overtime, expenses, total: labor + overtime + expenses };
@@ -85,7 +88,7 @@
         entry.site || '',
         entry.workerName || '',
         shiftLabel(entry.shift),
-        num(entry.qty || 1),
+        qtyValue(entry.qty),
         num(entry.unitRate),
         num(entry.otHours),
         num(entry.otRate),
@@ -113,7 +116,7 @@
       lines.push('', `${index + 1}. ${entry.site || '現場名未入力'}`);
       lines.push(`会社: ${entry.company || '-'} / 区分: ${typeLabel(entry.type)} / 勤務: ${shiftLabel(entry.shift)}`);
       if (entry.workerName) lines.push(`職人: ${entry.workerName}`);
-      lines.push(`人工: ${num(entry.qty || 1)} / 人工額: ${yen(calc.labor)} / 残業: ${yen(calc.overtime)} / 経費: ${yen(calc.expenses)}`);
+      lines.push(`人工: ${qtyValue(entry.qty)} / 人工額: ${yen(calc.labor)} / 残業: ${yen(calc.overtime)} / 経費: ${yen(calc.expenses)}`);
       if (expenses.length) lines.push(`経費内訳: ${expenses.map(([label, amount]) => `${label} ${yen(amount)}`).join('、')}`);
       if (entry.notes) lines.push(`メモ: ${entry.notes}`);
     });
