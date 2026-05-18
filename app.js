@@ -8,6 +8,7 @@ const DEFAULT_SETTINGS = {
   defaultDayRate: 0, defaultNightRate: 0, defaultOtRate: 0,
   companies: [], companyRates: [], expenseItems: DEFAULT_EXPENSE_ITEMS.map((label, index) => ({ id: `exp${index + 1}`, label })),
   companyInvoiceModes: {}, showSales: true, showSubcontract: true, googleClientId: '', googleCalendarId: 'primary', googleStoreMode: 'local', googleAccountEmail: '', googleSyncEnabled: false,
+  salesTotalParts: { labor: true, overtime: true, expenses: false },
 };
 const DEFAULT_STATE = { entries: [], receipts: [], settings: DEFAULT_SETTINGS };
 
@@ -39,6 +40,7 @@ function normalizeState(source) {
   settings.companies = Array.isArray(settings.companies) ? settings.companies.filter(Boolean) : [];
   settings.expenseItems = normalizeExpenseItems(settings.expenseItems);
   settings.companyInvoiceModes = settings.companyInvoiceModes && typeof settings.companyInvoiceModes === 'object' ? settings.companyInvoiceModes : {};
+  settings.salesTotalParts = { ...DEFAULT_SETTINGS.salesTotalParts, ...(settings.salesTotalParts || {}) };
   const entries = Array.isArray(source.entries) ? source.entries.map(normalizeEntry) : [];
   const receipts = Array.isArray(source.receipts) ? source.receipts.map(normalizeReceipt) : [];
   return { entries, receipts, settings };
@@ -67,7 +69,7 @@ function normalizeEntry(entry) {
   return {
     id: String(entry.id || crypto.randomUUID()), date: entry.date || toYmd(new Date()), type: entry.type || 'self', shift: entry.shift || 'day',
     company: entry.company || '', site: entry.site || '', workerName: entry.workerName || '', qty: qtyValue(entry.qty),
-    unitRate: num(entry.unitRate || 0), otHours: num(entry.otHours || 0), otRate: num(entry.otRate || 0),
+    unitRate: num(entry.unitRate || 0), paymentAmount: num(entry.paymentAmount || 0), otHours: num(entry.otHours || 0), otRate: num(entry.otRate || 0),
     expenses: entry.expenses && typeof entry.expenses === 'object' ? entry.expenses : {}, notes: entry.notes || '',
     invoiceMode: entry.invoiceMode || 'with', rangeGroupId: entry.rangeGroupId || '', rangeStart: entry.rangeStart || '', rangeEnd: entry.rangeEnd || '',
     excludedDates: Array.isArray(entry.excludedDates) ? entry.excludedDates.filter(Boolean) : [],
@@ -238,7 +240,16 @@ function calcEntry(entry) {
   const qty = qtyValue(entry.qty), unitRate = num(entry.unitRate), otHours = num(entry.otHours), otRate = num(entry.otRate);
   const labor = qty * unitRate, overtime = otHours * otRate;
   const expenses = expenseItems().reduce((sum, item) => sum + num(entry.expenses?.[item.id]), 0);
-  return { qty, unitRate, otHours, otRate, labor, overtime, expenses, subtotal: labor + overtime + expenses };
+  const subtotal = labor + overtime + expenses;
+  const paymentAmount = entry.type === 'sub' ? num(entry.paymentAmount) : 0;
+  const subcontractPay = entry.type === 'sub' ? (paymentAmount || subtotal) : 0;
+  const subcontractDiff = entry.type === 'sub' ? subtotal - subcontractPay : 0;
+  return { qty, unitRate, otHours, otRate, labor, overtime, expenses, subtotal, paymentAmount, subcontractPay, subcontractDiff };
+}
+function salesTotalForEntry(entry) {
+  const parts = { ...DEFAULT_SETTINGS.salesTotalParts, ...(state.settings.salesTotalParts || {}) };
+  const calc = calcEntry(entry);
+  return (parts.labor ? calc.labor : 0) + (parts.overtime ? calc.overtime : 0) + (parts.expenses ? calc.expenses : 0);
 }
 function shiftLabel(shift) { return { day: '日勤', night: '夜勤', trip: '出張' }[shift] || '日勤'; }
 function shiftClass(shift) { return { day: 'day', night: 'night', trip: 'trip' }[shift] || 'day'; }
@@ -318,20 +329,14 @@ function renderSummary() {
   const yearSelfEntries = yearEntries().filter((entry) => entry.type === 'self');
   const monthQty = sumBy(selfEntries, (entry) => calcEntry(entry).qty);
   const yearQty = sumBy(yearSelfEntries, (entry) => calcEntry(entry).qty);
-  const monthLaborAmount = sumBy(selfEntries, (entry) => {
-    const calc = calcEntry(entry);
-    return calc.labor + calc.overtime;
-  });
-  const yearLaborAmount = sumBy(yearSelfEntries, (entry) => {
-    const calc = calcEntry(entry);
-    return calc.labor + calc.overtime;
-  });
+  const monthSalesAmount = sumBy(selfEntries, salesTotalForEntry);
+  const yearSalesAmount = sumBy(yearSelfEntries, salesTotalForEntry);
   const hidden = !state.settings.showSales;
   document.getElementById('sum-grid').innerHTML = `
     <div class="sum-card"><div class="sl">今月の人工</div><div class="sv green">${qtyLabel(monthQty)}</div></div>
-    <div class="sum-card"><div class="sl">今月の人工額</div><div class="sv ${hidden ? 'hidden-amount' : ''}">${yen(monthLaborAmount, hidden)}</div></div>
+    <div class="sum-card"><div class="sl">今月の売上</div><div class="sv ${hidden ? 'hidden-amount' : ''}">${yen(monthSalesAmount, hidden)}</div></div>
     <div class="sum-card"><div class="sl">${cursor.getFullYear()}年の人工</div><div class="sv green">${qtyLabel(yearQty)}</div></div>
-    <div class="sum-card"><div class="sl">${cursor.getFullYear()}年の人工額</div><div class="sv ${hidden ? 'hidden-amount' : ''}">${yen(yearLaborAmount, hidden)}</div></div>`;
+    <div class="sum-card"><div class="sl">${cursor.getFullYear()}年の売上</div><div class="sv ${hidden ? 'hidden-amount' : ''}">${yen(yearSalesAmount, hidden)}</div></div>`;
 }
 function renderDayEntries() {
   const legacy = document.getElementById('day-entries');
@@ -371,15 +376,17 @@ function renderSubScreen() {
   const groups = {};
   monthlySubs.forEach((entry) => {
     const name = entry.workerName || '名称未入力';
-    if (!groups[name]) groups[name] = { days: 0, total: 0, companies: new Set(), entries: [] };
-    groups[name].days += qtyValue(entry.qty); groups[name].total += calcEntry(entry).subtotal; groups[name].entries.push(entry); if (entry.company) groups[name].companies.add(entry.company);
+    if (!groups[name]) groups[name] = { days: 0, total: 0, pay: 0, diff: 0, companies: new Set(), entries: [] };
+    const calc = calcEntry(entry);
+    groups[name].days += qtyValue(entry.qty); groups[name].total += calc.subtotal; groups[name].pay += calc.subcontractPay; groups[name].diff += calc.subcontractDiff; groups[name].entries.push(entry); if (entry.company) groups[name].companies.add(entry.company);
   });
-  const people = Object.entries(groups).sort((a, b) => b[1].total - a[1].total);
+  const people = Object.entries(groups).sort((a, b) => b[1].pay - a[1].pay);
   const hidden = !state.settings.showSales;
-  if (!people.length) { body.innerHTML = `<div class="sub-total-grid"><div class="sub-stat"><div class="k">外注人数</div><div class="v">0人</div></div><div class="sub-stat"><div class="k">支払見込</div><div class="v">${yen(0, hidden)}</div></div></div><div class="empty"><div class="icon">👷</div><div>外注の記録はまだありません</div><p>右下の＋から追加できます。</p></div>`; return; }
-  const totalPay = people.reduce((sum, [, info]) => sum + info.total, 0);
+  if (!people.length) { body.innerHTML = `<div class="sub-total-grid"><div class="sub-stat"><div class="k">外注人数</div><div class="v">0人</div></div><div class="sub-stat"><div class="k">支払合計</div><div class="v">${yen(0, hidden)}</div></div></div><div class="empty"><div class="icon">👷</div><div>外注の記録はまだありません</div><p>右下の＋から追加できます。</p></div>`; return; }
+  const totalPay = people.reduce((sum, [, info]) => sum + info.pay, 0);
+  const totalDiff = people.reduce((sum, [, info]) => sum + info.diff, 0);
   const totalDays = people.reduce((sum, [, info]) => sum + info.days, 0);
-  body.innerHTML = `<div class="sub-total-grid"><div class="sub-stat"><div class="k">外注人数</div><div class="v">${people.length}人</div></div><div class="sub-stat"><div class="k">支払見込</div><div class="v ${hidden ? 'hidden-amount' : ''}">${yen(totalPay, hidden)}</div></div><div class="sub-stat"><div class="k">人工合計</div><div class="v">${totalDays}</div></div><div class="sub-stat"><div class="k">会社数</div><div class="v">${new Set(monthlySubs.map((entry) => entry.company).filter(Boolean)).size}</div></div></div>${people.map(([name, info]) => `<div class="sub-card"><div class="sub-card-hd"><div><div class="sub-card-name">${escapeHtml(name)}</div><div class="sub-card-sub">${[...info.companies].join(' / ') || '会社未入力'}</div></div><div><div class="sub-card-amt ${hidden ? 'hidden-amount' : ''}">${yen(info.total, hidden)}</div><div class="sub-card-meta">${info.days}人工</div></div></div><div class="sub-card-foot">${info.entries.slice(0, 4).map((entry) => `<span class="etag">${fmtDateJP(entry.date)} ${escapeHtml(entry.site || '現場')}</span>`).join('')}</div></div>`).join('')}`;
+  body.innerHTML = `<div class="sub-total-grid"><div class="sub-stat"><div class="k">外注人数</div><div class="v">${people.length}人</div></div><div class="sub-stat"><div class="k">支払合計</div><div class="v ${hidden ? 'hidden-amount' : ''}">${yen(totalPay, hidden)}</div></div><div class="sub-stat"><div class="k">差額合計</div><div class="v ${hidden ? 'hidden-amount' : ''}">${yen(totalDiff, hidden)}</div></div><div class="sub-stat"><div class="k">人工合計</div><div class="v">${qtyLabel(totalDays)}</div></div></div><div class="btn-row" style="padding:0 16px 10px"><button class="btn-primary" data-export-sub-payments>支払いCSV出力</button></div>${people.map(([name, info]) => `<div class="sub-card"><div class="sub-card-hd"><div><div class="sub-card-name">${escapeHtml(name)}</div><div class="sub-card-sub">${[...info.companies].join(' / ') || '会社未入力'}</div></div><div><div class="sub-card-amt ${hidden ? 'hidden-amount' : ''}">${yen(info.pay, hidden)}</div><div class="sub-card-meta">${qtyLabel(info.days)}人工 / 差額 ${yen(info.diff, hidden)}</div></div></div><div class="sub-card-foot">${info.entries.slice(0, 4).map((entry) => { const calc = calcEntry(entry); return `<span class="etag">${fmtDateJP(entry.date)} ${escapeHtml(entry.site || '現場')} 支払 ${yen(calc.subcontractPay, hidden)}</span>`; }).join('')}</div></div>`).join('')}`;
 }
 function renderInvoiceScreen() {
   const tabs = document.getElementById('co-tabs');
@@ -439,11 +446,15 @@ function renderSettings() {
   document.getElementById('st-expenses').value = expenseItems().map((item) => item.label).join('\n');
   document.getElementById('tgl-inv').classList.toggle('on', !!s.invoiceEnabled);
   document.getElementById('tgl-subcontract')?.classList.toggle('on', subcontractEnabled());
+  const salesParts = { ...DEFAULT_SETTINGS.salesTotalParts, ...(s.salesTotalParts || {}) };
+  document.getElementById('tgl-sales-labor')?.classList.toggle('on', !!salesParts.labor);
+  document.getElementById('tgl-sales-overtime')?.classList.toggle('on', !!salesParts.overtime);
+  document.getElementById('tgl-sales-expenses')?.classList.toggle('on', !!salesParts.expenses);
   document.getElementById('inv-no-row').classList.toggle('hidden', !s.invoiceEnabled);
   renderSettingListEditors();
 }
 function createDefaultEntry(type, date) {
-  return { id: '', date, type, shift: 'day', company: '', site: '', workerName: '', qty: 1, unitRate: '', otHours: 0, otRate: '', expenses: Object.fromEntries(expenseItems().map((item) => [item.id, 0])), notes: '', invoiceMode: 'with' };
+  return { id: '', date, type, shift: 'day', company: '', site: '', workerName: '', qty: 1, unitRate: '', paymentAmount: '', otHours: 0, otRate: '', expenses: Object.fromEntries(expenseItems().map((item) => [item.id, 0])), notes: '', invoiceMode: 'with' };
 }
 function renderRangeExclusions(selectedDates = null) {
   const wrap = document.getElementById('range-exclude-wrap');
@@ -520,6 +531,28 @@ function commitDatePicker() {
   }
   closeDatePicker();
 }
+function currentFormSubtotal() {
+  const qty = qtyValue(document.getElementById('f-qty')?.value);
+  const unitRate = num(document.getElementById('f-rate')?.value);
+  const otHours = num(document.getElementById('f-ot-hours')?.value);
+  const otRate = num(document.getElementById('f-ot-rate')?.value);
+  const expenses = [...document.querySelectorAll('[data-expense-id]')].reduce((sum, input) => sum + num(input.value), 0);
+  return qty * unitRate + otHours * otRate + expenses;
+}
+function updateSubcontractDiff() {
+  const wrap = document.getElementById('sub-pay-wrap');
+  if (!wrap) return;
+  const isSub = document.querySelector('[data-entry-type].active')?.dataset.entryType === 'sub';
+  wrap.classList.toggle('hidden', !isSub);
+  if (!isSub) return;
+  const subtotal = currentFormSubtotal();
+  const payment = num(document.getElementById('f-payment-amount')?.value);
+  const diff = subtotal - (payment || subtotal);
+  const salesEl = document.getElementById('sub-sales-preview');
+  const diffEl = document.getElementById('sub-diff-preview');
+  if (salesEl) salesEl.textContent = yen(subtotal);
+  if (diffEl) diffEl.value = yen(diff);
+}
 function openModal(type, id = null) {
   if (type === 'sub' && !subcontractEnabled()) type = 'self';
   editingId = id;
@@ -548,11 +581,16 @@ function openModal(type, id = null) {
       <div class="field"><label>現場名</label><input id="f-site" value="${escapeHtml(entry.site)}" placeholder="空欄でも保存できます"></div>
       <div class="field-r2"><div class="field"><label>勤務区分</label><select id="f-shift"><option value="day" ${entry.shift === 'day' ? 'selected' : ''}>日勤</option><option value="night" ${entry.shift === 'night' ? 'selected' : ''}>夜勤</option><option value="trip" ${entry.shift === 'trip' ? 'selected' : ''}>出張</option></select></div><div class="field"><label>人工</label><input id="f-qty" type="number" min="0" step="0.5" value="${entry.qty}"></div></div>
       <div class="field-r3"><div class="field"><label>単価</label><input id="f-rate" type="number" min="0" step="1" value="${rateFieldValue(entry.unitRate)}"></div><div class="field"><label>残業時間</label><input id="f-ot-hours" type="number" min="0" step="0.5" value="${num(entry.otHours) || ''}"></div><div class="field"><label>残業単価</label><input id="f-ot-rate" type="number" min="0" step="1" value="${rateFieldValue(entry.otRate)}"></div></div>
+      <div class="${isSub ? '' : 'hidden'}" id="sub-pay-wrap">
+        <div class="field-r2"><div class="field"><label>支払金額</label><input id="f-payment-amount" type="number" min="0" step="1" value="${rateFieldValue(entry.paymentAmount)}" placeholder="実際に払う金額"></div><div class="field"><label>差額</label><input id="sub-diff-preview" readonly value=""></div></div>
+        <div class="sub-pay-note">売上計算 <strong id="sub-sales-preview">¥0</strong> との差額を表示します</div>
+      </div>
       <div class="sec-hd" style="padding:0 0 8px">経費</div><div class="field-r2">${expenseFields}</div>
       <div class="field"><label>メモ</label><textarea id="f-notes" placeholder="注意点やメモ">${escapeHtml(entry.notes)}</textarea></div>
       <div class="btn-row entry-actions"><button class="btn-secondary" type="button" id="cancel-entry-btn">キャンセル</button><button class="btn-primary" type="submit">保存</button></div>
     </form>`;
   renderRangeExclusions(editRange?.excludedDates || []);
+  updateSubcontractDiff();
   document.getElementById('modal-bg').classList.add('open');
 }
 function closeModal() {
@@ -580,7 +618,7 @@ function collectEntryForm() {
   const base = {
     type, shift: document.getElementById('f-shift').value,
     company: document.getElementById('f-company').value.trim(), site: document.getElementById('f-site').value.trim(), workerName: document.getElementById('f-worker').value.trim(),
-    qty: num(document.getElementById('f-qty').value), unitRate: num(document.getElementById('f-rate').value), otHours: num(document.getElementById('f-ot-hours').value), otRate: num(document.getElementById('f-ot-rate').value),
+    qty: num(document.getElementById('f-qty').value), unitRate: num(document.getElementById('f-rate').value), paymentAmount: type === 'sub' ? num(document.getElementById('f-payment-amount')?.value) : 0, otHours: num(document.getElementById('f-ot-hours').value), otRate: num(document.getElementById('f-ot-rate').value),
     expenses: {}, notes: document.getElementById('f-notes').value.trim(), invoiceMode: 'with', createdAt, updatedAt: new Date().toISOString()
   };
   document.querySelectorAll('[data-expense-id]').forEach((input) => { base.expenses[input.dataset.expenseId] = num(input.value); });
@@ -740,7 +778,12 @@ function handleReceiptFiles(files) {
 function saveSettings() {
   const linesToObjects = (text, previous) => text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((label, index) => ({ id: previous[index]?.id || `exp${index + 1}`, label }));
   const companyRates = companyPresetValues();
-  state.settings = { ...state.settings, name: document.getElementById('st-name').value.trim(), address: document.getElementById('st-addr').value.trim(), tel: document.getElementById('st-tel').value.trim(), companyName: document.getElementById('st-co').value.trim(), bank: document.getElementById('st-bank').value.trim(), branch: document.getElementById('st-branch').value.trim(), accountNo: document.getElementById('st-accno').value.trim(), accountName: document.getElementById('st-accname').value.trim(), invoiceNo: document.getElementById('st-invno').value.trim(), invoiceEnabled: document.getElementById('tgl-inv').classList.contains('on'), showSubcontract: document.getElementById('tgl-subcontract')?.classList.contains('on') !== false, taxRate: num(document.getElementById('st-tax').value || 10), defaultDayRate: 0, defaultNightRate: 0, defaultOtRate: 0, companyRates, companies: companyRates.map((item) => item.name), expenseItems: linesToObjects(document.getElementById('st-expenses').value, expenseItems()) };
+  const salesTotalParts = {
+    labor: document.getElementById('tgl-sales-labor')?.classList.contains('on') !== false,
+    overtime: document.getElementById('tgl-sales-overtime')?.classList.contains('on') !== false,
+    expenses: document.getElementById('tgl-sales-expenses')?.classList.contains('on') === true,
+  };
+  state.settings = { ...state.settings, name: document.getElementById('st-name').value.trim(), address: document.getElementById('st-addr').value.trim(), tel: document.getElementById('st-tel').value.trim(), companyName: document.getElementById('st-co').value.trim(), bank: document.getElementById('st-bank').value.trim(), branch: document.getElementById('st-branch').value.trim(), accountNo: document.getElementById('st-accno').value.trim(), accountName: document.getElementById('st-accname').value.trim(), invoiceNo: document.getElementById('st-invno').value.trim(), invoiceEnabled: document.getElementById('tgl-inv').classList.contains('on'), showSubcontract: document.getElementById('tgl-subcontract')?.classList.contains('on') !== false, salesTotalParts, taxRate: num(document.getElementById('st-tax').value || 10), defaultDayRate: 0, defaultNightRate: 0, defaultOtRate: 0, companyRates, companies: companyRates.map((item) => item.name), expenseItems: linesToObjects(document.getElementById('st-expenses').value, expenseItems()) };
   state.entries = state.entries.map((entry) => { const nextExpenses = {}; expenseItems().forEach((item) => { nextExpenses[item.id] = num(entry.expenses?.[item.id]); }); return { ...entry, expenses: nextExpenses }; });
   saveState(); renderAll(); showSaveFeedback('設定を保存しました');
 }
@@ -758,6 +801,14 @@ function exportDemenCsv() {
     rows.push([entry.date, entry.company, entry.site, shiftLabel(entry.shift), calc.qty, calc.unitRate, calc.labor, calc.otHours, calc.overtime, ...expenseItems().map((item) => num(entry.expenses?.[item.id])), calc.subtotal]);
   });
   downloadCsv(`${monthKey(cursor)}_${selectedCompany}_出面表.csv`, rows);
+}
+function exportSubPaymentsCsv() {
+  const rows = [['日付', '職人名', '会社名', '現場名', '勤務', '人工', '単価', '売上計算', '支払金額', '差額', 'メモ']];
+  monthEntries().filter((entry) => entry.type === 'sub').forEach((entry) => {
+    const calc = calcEntry(entry);
+    rows.push([entry.date, entry.workerName || '', entry.company, entry.site, shiftLabel(entry.shift), calc.qty, calc.unitRate, calc.subtotal, calc.subcontractPay, calc.subcontractDiff, entry.notes || '']);
+  });
+  downloadCsv(`${monthKey(cursor)}_外注支払い.csv`, rows);
 }
 function exportInvoiceCsv() {
   const entries = monthEntries().filter((entry) => entry.type === 'self' && entry.company === selectedCompany);
@@ -794,6 +845,7 @@ function bindEvents() {
   document.getElementById('receipt-file')?.addEventListener('change', (event) => { handleReceiptFiles(event.target.files); event.target.value = ''; });
   document.getElementById('tgl-inv').addEventListener('click', () => { document.getElementById('tgl-inv').classList.toggle('on'); document.getElementById('inv-no-row').classList.toggle('hidden', !document.getElementById('tgl-inv').classList.contains('on')); });
   document.getElementById('tgl-subcontract')?.addEventListener('click', () => document.getElementById('tgl-subcontract').classList.toggle('on'));
+  ['tgl-sales-labor', 'tgl-sales-overtime', 'tgl-sales-expenses'].forEach((id) => document.getElementById(id)?.addEventListener('click', () => document.getElementById(id).classList.toggle('on')));
   document.getElementById('modal-bg').addEventListener('click', (event) => { if (event.target.id === 'modal-bg') closeModal(); });
   document.addEventListener('click', (event) => {
     if (event.target.id === 'date-picker-bg' || event.target.matches('[data-date-picker-cancel]')) { closeDatePicker(); return; }
@@ -827,7 +879,7 @@ function bindEvents() {
     const editButton = event.target.closest('[data-edit-entry]'); if (editButton) { closeDayModal(); openModal('self', editButton.dataset.editEntry); return; }
     const delButton = event.target.closest('[data-del-entry]'); if (delButton) { if (confirm('この予定を削除しますか？')) deleteEntry(delButton.dataset.delEntry); return; }
     const companySelect = event.target.closest('#f-company-select');
-    if (companySelect) { const input = document.getElementById('f-company'); if (input && companySelect.value) { input.value = companySelect.value; applyCompanyRate(companySelect.value); } return; }
+    if (companySelect) { const input = document.getElementById('f-company'); if (input && companySelect.value) { input.value = companySelect.value; applyCompanyRate(companySelect.value); updateSubcontractDiff(); } return; }
     const applyReceipt = event.target.closest('[data-apply-receipt]');
     if (applyReceipt) { applyReceiptToEntry(applyReceipt.dataset.applyReceipt); return; }
     const delReceipt = event.target.closest('[data-del-receipt]');
@@ -837,12 +889,15 @@ function bindEvents() {
     if (event.target.matches('#cancel-entry-btn')) { closeModal(); return; }
     if (event.target.matches('[data-export-demen]')) exportDemenCsv();
     if (event.target.matches('[data-export-invoice]')) exportInvoiceCsv();
+    if (event.target.matches('[data-export-sub-payments]')) exportSubPaymentsCsv();
     if (event.target.matches('[data-print-demen]')) printView('demen');
     if (event.target.matches('[data-print-invoice]')) printView('invoice');
     if (event.target.matches('[data-entry-type]')) {
       if (event.target.dataset.entryType === 'sub' && !subcontractEnabled()) return;
       document.querySelectorAll('[data-entry-type]').forEach((button) => button.classList.remove('active')); event.target.classList.add('active');
-      document.getElementById('worker-wrap').classList.toggle('hidden', event.target.dataset.entryType !== 'sub'); return;
+      document.getElementById('worker-wrap').classList.toggle('hidden', event.target.dataset.entryType !== 'sub');
+      updateSubcontractDiff();
+      return;
     }
     if (!event.target.closest('.top-menu') && !event.target.closest('.ghost-icon-btn')) {
       document.querySelectorAll('.top-menu').forEach((menu) => menu.classList.add('hidden'));
@@ -852,14 +907,18 @@ function bindEvents() {
   document.addEventListener('change', (event) => {
     if (event.target.id === 'f-date' || event.target.id === 'f-end-date') { renderRangeExclusions(); return; }
     if (event.target.matches('[data-range-exclude]')) { event.target.closest('.range-exclude-chip')?.classList.toggle('checked', event.target.checked); return; }
-    if (event.target.id === 'f-company-select') { const input = document.getElementById('f-company'); if (input && event.target.value) { input.value = event.target.value; applyCompanyRate(event.target.value); } return; }
+    if (event.target.id === 'f-company-select') { const input = document.getElementById('f-company'); if (input && event.target.value) { input.value = event.target.value; applyCompanyRate(event.target.value); updateSubcontractDiff(); } return; }
     if (event.target.matches('[data-receipt-category]')) { updateReceiptField(event.target.dataset.receiptCategory, { category: event.target.value, status: '確認済み' }); renderAll(); return; }
     if (event.target.matches('[data-receipt-date]')) { updateReceiptField(event.target.dataset.receiptDate, { date: event.target.value, status: '確認済み' }); return; }
     if (event.target.matches('[data-receipt-amount]')) { updateReceiptField(event.target.dataset.receiptAmount, { amount: num(event.target.value), status: '確認済み' }); return; }
     if (event.target.id === 'f-company') {
       const select = document.getElementById('f-company-select'); if (select) select.value = companyOptions().includes(event.target.value.trim()) ? event.target.value.trim() : '';
     }
-    if (event.target.id === 'f-shift') applyCompanyRate(document.getElementById('f-company')?.value.trim());
+    if (event.target.id === 'f-shift') { applyCompanyRate(document.getElementById('f-company')?.value.trim()); updateSubcontractDiff(); }
+  });
+
+  document.addEventListener('input', (event) => {
+    if (event.target.matches('#entry-form input, #entry-form textarea, #entry-form select')) updateSubcontractDiff();
   });
 
   document.addEventListener('submit', (event) => {

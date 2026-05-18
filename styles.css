@@ -83,6 +83,8 @@ input[type="number"]{appearance:textfield;-moz-appearance:textfield}
 .field-r2{grid-template-columns:repeat(2,minmax(0,1fr))}
 .field-r3{grid-template-columns:repeat(3,minmax(0,1fr))}
 .btn-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+.sub-pay-note{margin:-8px 0 14px;color:var(--sub);font-size:13px;font-weight:800}
+.sub-pay-note strong{color:var(--trip)}
 .entry-actions{position:sticky;bottom:0;z-index:2;margin:12px -20px -16px;padding:12px 20px calc(12px + var(--safe-bot));background:linear-gradient(180deg,rgba(255,255,255,.82),#fff 34%);border-top:1px solid var(--line)}
 .type-sel{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:16px}
 .type-btn{border:1px solid var(--line);background:#fff;color:var(--sub);padding:11px 8px;border-radius:12px;font-size:14px;font-weight:800;text-align:center}
