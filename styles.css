@@ -37,7 +37,7 @@ button{cursor:pointer}
 .cal-task.night{background:var(--night);color:#fff}
 .cal-task.trip{background:var(--trip)}
 .cal-task.sub{background:#2fb56f;color:#fff;outline:1px solid rgba(255,255,255,.5)}
-.more-chip{font-size:12px;color:var(--sub);text-align:center;font-weight:800}
+.more-chip{display:inline-flex;align-items:center;justify-content:center;width:max-content;max-width:100%;min-height:18px;border-radius:999px;background:#eef3f8;color:#4b5563;padding:1px 6px;font-size:11px;line-height:1;font-weight:900}
 .sum-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:10px 14px}
 .sum-card{background:var(--card);border:1px solid #e3e8ef;border-radius:12px;padding:12px 13px;box-shadow:0 3px 12px rgba(15,23,42,.04)}
 .sl{font-size:13px;color:#687381;font-weight:700}
@@ -219,7 +219,7 @@ input[type="number"]{appearance:textfield;-moz-appearance:textfield}
   .cal-task.night{background:#7467c9;color:#fff}
   .cal-task.trip{background:#5bb89b;color:#fff}
   .cal-task.sub{background:#2fb56f;color:#fff}
-  .more-chip{height:18px;text-align:left;padding-left:4px;font-size:18px;line-height:.7;color:#5f6368}
+  .more-chip{height:16px;min-height:16px;padding:1px 5px;font-size:10px;line-height:1;color:#4b5563;background:#e9eef5}
   .sum-grid{padding:9px 10px 14px;gap:7px}
   .sum-card{border-radius:10px;padding:9px 10px;min-height:62px}
   .sl{font-size:11px}.sv{font-size:20px}

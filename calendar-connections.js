@@ -239,7 +239,8 @@
         const label = escapeHtml(companyEventTitle(entry));
         return `<div class="${window.calendarTaskClass(entry)}" style="--slot:${slot};--span:${span}">${label}</div>`;
       }).join('');
-      const more = visibleItems.length > 4 ? `<div class="more-chip">•••</div>` : '';
+      const hiddenCount = Math.max(0, visibleItems.length - 4, items.length - 4);
+      const more = hiddenCount ? `<div class="more-chip" aria-label="ほかに${hiddenCount}件">… +${hiddenCount}</div>` : '';
       const holidayHtml = holiday ? `<span class="holiday-name">${escapeHtml(holiday)}</span>` : '<span class="holiday-name"></span>';
       rows.push(`<button class="${classes.join(' ')}" data-date="${ymd}"><span class="dn">${date.getDate()}</span>${holidayHtml}<div class="task-stack">${lines}</div>${more}</button>`);
     }
