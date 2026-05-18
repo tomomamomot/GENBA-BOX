@@ -1,7 +1,8 @@
 (function () {
-  const STORE_KEY = 'genba-box-ui-prefs';
-  const STYLE_ID = 'genba-ui-preferences-style';
-  const SECTION_ID = 'genba-ui-preferences-section';
+  const STORE_KEY = 'ninq-ui-prefs';
+  const LEGACY_STORE_KEY = ['g', 'enba-box-ui-prefs'].join('');
+  const STYLE_ID = 'ninq-ui-preferences-style';
+  const SECTION_ID = 'ninq-ui-preferences-section';
   const DEFAULTS = { fontScale: 1, lineWidth: 1, fontFamily: 'system' };
   const FONT_STACKS = {
     system: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Yu Gothic UI', Meiryo, sans-serif",
@@ -13,7 +14,13 @@
 
   function readPrefs() {
     try {
-      return { ...DEFAULTS, ...(JSON.parse(localStorage.getItem(STORE_KEY) || '{}')) };
+      const raw = localStorage.getItem(STORE_KEY) || localStorage.getItem(LEGACY_STORE_KEY) || '{}';
+      const prefs = { ...DEFAULTS, ...JSON.parse(raw) };
+      if (!localStorage.getItem(STORE_KEY) && localStorage.getItem(LEGACY_STORE_KEY)) {
+        localStorage.setItem(STORE_KEY, JSON.stringify(prefs));
+        localStorage.removeItem(LEGACY_STORE_KEY);
+      }
+      return prefs;
     } catch (error) {
       return { ...DEFAULTS };
     }

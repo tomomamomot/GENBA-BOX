@@ -1,7 +1,7 @@
 (function () {
   const APP_NAME = 'NINQ';
   const THEME_COLOR = '#0b1016';
-  const MANIFEST_PATH = 'manifest.json?v=33';
+  const MANIFEST_PATH = 'manifest.json?v=34';
   const LOGO_PATH = 'ninq-logo.svg?v=33';
   const APPLE_ICON_PATH = 'apple-touch-icon.png?v=33';
 
@@ -28,7 +28,7 @@
     setLink('icon', LOGO_PATH);
     setLink('apple-touch-icon', APPLE_ICON_PATH);
     document.querySelectorAll('.topbar-title').forEach((title) => {
-      if (title.textContent.trim() === 'GENBA BOX') title.textContent = APP_NAME;
+      if (!title.textContent.trim()) title.textContent = APP_NAME;
     });
   }
 

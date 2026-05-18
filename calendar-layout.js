@@ -1,5 +1,5 @@
 (function () {
-  const STYLE_ID = 'genba-calendar-fixed-layout';
+  const STYLE_ID = 'ninq-calendar-fixed-layout';
   const DETAILS_BUTTON_CLASS = 'summary-detail-toggle';
 
   function injectStyle() {

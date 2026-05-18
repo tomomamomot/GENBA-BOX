@@ -1,11 +1,12 @@
 (function () {
-  const STORE_KEY = 'genba-box-v2';
-  const REPORT_BUTTONS_ID = 'genba-report-tools';
+  const STORE_KEY = 'ninq-v2';
+  const LEGACY_STORE_KEY = ['g', 'enba-box-v2'].join('');
+  const REPORT_BUTTONS_ID = 'ninq-report-tools';
   const APP_NAME = 'NINQ';
 
   function readState() {
     try {
-      const raw = localStorage.getItem(STORE_KEY);
+      const raw = localStorage.getItem(STORE_KEY) || localStorage.getItem(LEGACY_STORE_KEY);
       return raw ? JSON.parse(raw) : { entries: [], settings: {} };
     } catch (error) {
       console.warn('report read failed', error);

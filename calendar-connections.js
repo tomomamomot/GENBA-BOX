@@ -1,5 +1,5 @@
 (function () {
-  const STYLE_ID = 'genba-calendar-connections-style';
+  const STYLE_ID = 'ninq-calendar-connections-style';
   const HOLIDAY_CACHE = new Map();
 
   function columnIndex(date) {

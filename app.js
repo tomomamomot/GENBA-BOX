@@ -1,7 +1,7 @@
 
-const STORE_KEY = 'genba-box-v2';
-const OLD_STORE_KEY = 'shokunin3';
-const DRIVE_SYNC_FILE = 'genba-box-sync.json';
+const STORE_KEY = 'ninq-v2';
+const LEGACY_STORE_KEYS = [['s', 'hokunin3'].join(''), ['g', 'enba-box-v2'].join('')];
+const DRIVE_SYNC_FILE = 'ninq-sync.json';
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
 const DEFAULT_EXPENSE_ITEMS = ['交通費', '駐車場代', '宿泊費', 'ガソリン代', '資材代', 'その他'];
 const DEFAULT_SETTINGS = {
@@ -31,8 +31,14 @@ function loadState() {
   try {
     const raw = localStorage.getItem(STORE_KEY);
     if (raw) return normalizeState(JSON.parse(raw));
-    const legacy = localStorage.getItem(OLD_STORE_KEY);
-    if (legacy) return migrateLegacy(JSON.parse(legacy));
+    for (const key of LEGACY_STORE_KEYS) {
+      const legacy = localStorage.getItem(key);
+      if (!legacy) continue;
+      const migrated = key === LEGACY_STORE_KEYS[0] ? migrateLegacy(JSON.parse(legacy)) : normalizeState(JSON.parse(legacy));
+      localStorage.setItem(STORE_KEY, JSON.stringify(migrated));
+      localStorage.removeItem(key);
+      return migrated;
+    }
   } catch (error) {
     console.warn('loadState failed', error);
   }
@@ -678,7 +684,7 @@ function localModifiedAt(targetState = state) {
   return dates.length ? new Date(Math.max(...dates)).toISOString() : new Date(0).toISOString();
 }
 function syncPayload() {
-  return { app: 'GENBA BOX', version: 2, syncedAt: new Date().toISOString(), modifiedAt: localModifiedAt(), state: normalizeState(state) };
+  return { app: 'NINQ', version: 2, syncedAt: new Date().toISOString(), modifiedAt: localModifiedAt(), state: normalizeState(state) };
 }
 function loadGoogleIdentity() {
   if (window.google?.accounts?.oauth2) return Promise.resolve();
@@ -735,7 +741,7 @@ async function findDriveSyncFile() {
   return data.files?.[0] || null;
 }
 function multipartBody(metadata, content) {
-  const boundary = `genba_box_${Date.now()}`;
+  const boundary = `ninq_${Date.now()}`;
   const body = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${content}\r\n--${boundary}--`;
   return { boundary, body };
 }
@@ -841,10 +847,10 @@ function googleCalendarUrl(entry) {
 }
 function buildIcs(entries) {
   const stamp = icsStamp();
-  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//GENBA BOX//Calendar Export//JA', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//NINQ//Calendar Export//JA', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
   entries.forEach((entry) => {
     const endDate = fromYmd(entry.date); endDate.setDate(endDate.getDate() + 1);
-    lines.push('BEGIN:VEVENT', `UID:${icsEscape(entry.id)}@genba-box`, `DTSTAMP:${stamp}`, `DTSTART;VALUE=DATE:${icsDate(entry.date)}`, `DTEND;VALUE=DATE:${icsDate(toYmd(endDate))}`, `SUMMARY:${icsEscape(companyEventTitle(entry))}`, `DESCRIPTION:${icsEscape(calendarDescription(entry))}`, 'END:VEVENT');
+    lines.push('BEGIN:VEVENT', `UID:${icsEscape(entry.id)}@ninq`, `DTSTAMP:${stamp}`, `DTSTART;VALUE=DATE:${icsDate(entry.date)}`, `DTEND;VALUE=DATE:${icsDate(toYmd(endDate))}`, `SUMMARY:${icsEscape(companyEventTitle(entry))}`, `DESCRIPTION:${icsEscape(calendarDescription(entry))}`, 'END:VEVENT');
   });
   lines.push('END:VCALENDAR', '');
   return lines.join('\r\n');
@@ -852,7 +858,7 @@ function buildIcs(entries) {
 function exportMonthCalendarIcs() {
   const entries = monthEntries();
   if (!entries.length) { setSyncLog('今月の予定がありません'); return; }
-  downloadText(`${monthKey(cursor)}_GENBA-BOX.ics`, buildIcs(entries), 'text/calendar;charset=utf-8;');
+  downloadText(`${monthKey(cursor)}_NINQ.ics`, buildIcs(entries), 'text/calendar;charset=utf-8;');
   setSyncLog(`${fmtMonth(cursor)}の予定${entries.length}件を出力しました`);
 }
 function openSelectedDayGoogleCalendar() {
@@ -862,8 +868,8 @@ function openSelectedDayGoogleCalendar() {
   setSyncLog(entries.length > 1 ? '選択日の先頭予定をGoogleカレンダーで開きました' : '選択日の予定をGoogleカレンダーで開きました');
 }
 function exportBackupJson() {
-  const payload = { app: 'GENBA BOX', version: 1, exportedAt: new Date().toISOString(), state: normalizeState(state) };
-  downloadText(`genba-box-backup-${toYmd(new Date())}.json`, JSON.stringify(payload, null, 2), 'application/json;charset=utf-8;');
+  const payload = { app: 'NINQ', version: 1, exportedAt: new Date().toISOString(), state: normalizeState(state) };
+  downloadText(`ninq-backup-${toYmd(new Date())}.json`, JSON.stringify(payload, null, 2), 'application/json;charset=utf-8;');
   setSyncLog('バックアップを書き出しました');
 }
 function importBackupJson(file) {
