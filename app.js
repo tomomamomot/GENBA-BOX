@@ -320,11 +320,11 @@ function renderSummary() {
   const yearQty = sumBy(yearSelfEntries, (entry) => calcEntry(entry).qty);
   const monthLaborAmount = sumBy(selfEntries, (entry) => {
     const calc = calcEntry(entry);
-    return calc.labor + calc.overtime;
+    return calc.labor;
   });
   const yearLaborAmount = sumBy(yearSelfEntries, (entry) => {
     const calc = calcEntry(entry);
-    return calc.labor + calc.overtime;
+    return calc.labor;
   });
   const hidden = !state.settings.showSales;
   document.getElementById('sum-grid').innerHTML = `
