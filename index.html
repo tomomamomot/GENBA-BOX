@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.json?v=35">
 <link rel="icon" href="icon-192.png?v=34">
 <link rel="apple-touch-icon" href="apple-touch-icon.png?v=34">
-<link rel="stylesheet" href="styles.css?v=27">
+<link rel="stylesheet" href="styles.css?v=28">
 </head>
 <body>
 <div id="sc-cal" class="screen active">
@@ -72,7 +72,7 @@
   <div class="topbar">
     <div class="topbar-row">
       <div>
-        <div class="topbar-title">出面表・請求書</div>
+        <div class="topbar-title">請求書・出面表</div>
         <div class="topbar-sub" id="inv-sub"></div>
       </div>
       <div class="topbar-actions">
@@ -164,6 +164,7 @@
     <div class="st-row"><span class="st-label">インボイス表示</span><button class="toggle on" id="tgl-inv"></button></div>
     <div class="st-row" id="inv-no-row"><span class="st-label">登録番号</span><input class="st-input" id="st-invno" placeholder="T0000000000000"></div>
     <div class="st-row"><span class="st-label">消費税率</span><select class="st-select" id="st-tax"><option value="10">10%</option><option value="8">8%</option><option value="0">0%</option></select></div>
+    <div class="st-row"><span class="st-label">印鑑</span><div class="stamp-setting"><input id="st-stamp-file" type="file" accept="image/*" hidden><button class="btn-secondary" type="button" id="stamp-pick-btn">印鑑画像を登録</button><button class="btn-secondary" type="button" id="stamp-clear-btn">削除</button><img id="stamp-preview" class="stamp-preview hidden" alt="印鑑プレビュー"></div></div>
   </div>
 
   <div class="save-wrap">
@@ -197,7 +198,9 @@
         <span id="calendar-export-count">0件</span>
       </div>
       <div class="sync-actions two">
-        <button class="btn-primary" type="button" id="google-export-month-btn">今月分を出力</button>
+        <div class="field"><label>開始日</label><input id="google-export-start" class="date-picker-input st-input" type="text" inputmode="none" readonly data-date-picker></div>
+        <div class="field"><label>終了日</label><input id="google-export-end" class="date-picker-input st-input" type="text" inputmode="none" readonly data-date-picker></div>
+        <button class="btn-primary" type="button" id="google-export-range-btn">選択期間を出力</button>
         <button class="btn-secondary" type="button" id="google-open-selected-day-btn">選択日を開く</button>
       </div>
     </div>
@@ -295,6 +298,6 @@
   </div>
 </div>
 
-<script src="app.js?v=29"></script>
+<script src="app.js?v=31"></script>
 </body>
 </html>

@@ -6,7 +6,7 @@ const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
 const DEFAULT_EXPENSE_ITEMS = ['交通費', '駐車場代', '宿泊費', 'ガソリン代', '資材代', 'その他'];
 const DEFAULT_SETTINGS = {
   name: '', address: '', tel: '', companyName: '', bank: '', branch: '', accountNo: '', accountName: '',
-  invoiceNo: '', invoiceEnabled: true, taxRate: 10,
+  invoiceNo: '', invoiceEnabled: true, taxRate: 10, stampImage: '',
   defaultDayRate: 0, defaultNightRate: 0, defaultOtRate: 0,
   companies: [], companyRates: [], expenseItems: DEFAULT_EXPENSE_ITEMS.map((label, index) => ({ id: `exp${index + 1}`, label })),
   companyInvoiceModes: {}, showSales: true, showSubcontract: true, googleClientId: '', googleCalendarId: 'primary', googleStoreMode: 'local', googleAccountEmail: '', googleSyncEnabled: false,
@@ -115,6 +115,7 @@ function qtyValue(value, fallback = 1) { return value === '' || value === null |
 function roundTo(value, digits = 2) { const factor = 10 ** digits; return Math.round((num(value) + Number.EPSILON) * factor) / factor; }
 function qtyLabel(value) { return roundTo(value, 2).toLocaleString('ja-JP', { maximumFractionDigits: 2 }); }
 function yen(value, hidden = false) { return hidden ? '••••••' : `¥${Math.round(num(value)).toLocaleString('ja-JP')}`; }
+function yenPlain(value, hidden = false) { return hidden ? '••••••' : Math.round(num(value)).toLocaleString('ja-JP'); }
 function escapeHtml(value) { return String(value || '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;'); }
 function toYmd(date) { const d = new Date(date); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
 function fromYmd(ymd) { const [y, m, d] = String(ymd).split('-').map(Number); return new Date(y, m - 1, d); }
@@ -398,21 +399,121 @@ function renderSubScreen() {
   const totalDays = people.reduce((sum, [, info]) => sum + info.days, 0);
   body.innerHTML = `<div class="sub-total-grid"><div class="sub-stat"><div class="k">外注人数</div><div class="v">${people.length}人</div></div><div class="sub-stat"><div class="k">支払合計</div><div class="v ${hidden ? 'hidden-amount' : ''}">${yen(totalPay, hidden)}</div></div><div class="sub-stat"><div class="k">差額合計</div><div class="v ${hidden ? 'hidden-amount' : ''}">${yen(totalDiff, hidden)}</div></div><div class="sub-stat"><div class="k">人工合計</div><div class="v">${qtyLabel(totalDays)}</div></div></div><div class="btn-row" style="padding:0 16px 10px"><button class="btn-primary" data-export-sub-payments>支払いCSV出力</button></div>${people.map(([name, info]) => `<div class="sub-card"><div class="sub-card-hd"><div><div class="sub-card-name">${escapeHtml(name)}</div><div class="sub-card-sub">${[...info.companies].join(' / ') || '会社未入力'}</div></div><div><div class="sub-card-amt ${hidden ? 'hidden-amount' : ''}">${yen(info.pay, hidden)}</div><div class="sub-card-meta">${qtyLabel(info.days)}人工 / 差額 ${yen(info.diff, hidden)}</div></div></div><div class="sub-card-foot">${info.entries.slice(0, 4).map((entry) => { const calc = calcEntry(entry); return `<span class="etag">${fmtDateJP(entry.date)} ${escapeHtml(entry.site || '現場')} 支払 ${yen(calc.subcontractPay, hidden)}</span>`; }).join('')}</div></div>`).join('')}`;
 }
+const DEMEN_EXPENSE_LABELS = ['交通費', '駐車場代', '宿泊代', 'ガソリン代', '資材等', '他諸経費'];
+function invoiceDateLabel() {
+  const last = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
+  return `${last.getFullYear()}年${last.getMonth() + 1}月${last.getDate()}日`;
+}
+function entriesForInvoiceCompany() {
+  return monthEntries().filter((entry) => entry.type === 'self' && entry.company === selectedCompany);
+}
+function invoiceTotals(entries) {
+  const rows = entries.map((entry) => ({ entry, calc: calcEntry(entry) }));
+  const qty = sumBy(entries, (entry) => calcEntry(entry).qty);
+  const labor = sumBy(entries, (entry) => calcEntry(entry).labor);
+  const otHours = sumBy(entries, (entry) => calcEntry(entry).otHours);
+  const overtime = sumBy(entries, (entry) => calcEntry(entry).overtime);
+  const expenseColumns = DEMEN_EXPENSE_LABELS.map((label, index) => ({ label, item: expenseItems()[index] || { id: `exp${index + 1}`, label } }));
+  const expenses = expenseColumns.map((col) => ({ ...col, total: sumBy(entries, (entry) => num(entry.expenses?.[col.item.id])) }));
+  const expenseTotal = expenses.reduce((sum, item) => sum + item.total, 0);
+  const subtotal = labor + overtime;
+  const tax = state.settings.invoiceEnabled ? Math.round(subtotal * (num(state.settings.taxRate) / 100)) : 0;
+  return { rows, qty, labor, otHours, overtime, expenses, expenseTotal, subtotal, tax, total: subtotal + tax + expenseTotal };
+}
+function buildInvoiceSheet(entries, totals, hidden) {
+  const s = state.settings;
+  const laborRate = entries.find((entry) => calcEntry(entry).unitRate)?.unitRate || 0;
+  const otRate = entries.find((entry) => calcEntry(entry).otRate)?.otRate || 0;
+  const stamp = s.stampImage ? `<img class="invoice-stamp" src="${s.stampImage}" alt="印鑑">` : '';
+  const expenseRows = totals.expenses.map((item) => `<tr><td></td><td colspan="2" class="left">${escapeHtml(item.label)}</td><td></td><td></td><td></td><td class="right">${item.total ? yenPlain(item.total, hidden) : ''}</td><td></td></tr>`).join('');
+  return `
+    <div class="invoice-scroll">
+      <div class="invoice-sheet" id="print-invoice-box">
+        <div class="invoice-title">御　請　求　書</div>
+        <div class="invoice-date">${invoiceDateLabel()}</div>
+        <div class="invoice-to"><span>${escapeHtml(selectedCompany)}</span><b>御中</b></div>
+        <div class="invoice-message">　　下記のとおりご請求申し上げます</div>
+        <div class="invoice-sender">
+          ${stamp}
+          <strong>${escapeHtml(s.companyName || s.name || '')}</strong>
+          <span>${escapeHtml(s.address || '')}</span>
+          <span>${s.tel ? `TEL ${escapeHtml(s.tel)}` : ''}</span>
+          <span>${s.invoiceNo ? `登録番号：${escapeHtml(s.invoiceNo)}` : ''}</span>
+        </div>
+        <div class="invoice-amount"><span>御請求金額</span><strong>${yen(totals.total, hidden)}</strong></div>
+        <div class="invoice-tax-note">※税込</div>
+        <table class="invoice-table">
+          <thead><tr><th>項目</th><th colspan="2">名称・形状・寸法</th><th>数量</th><th>単位</th><th>単価</th><th>金額</th><th>備考</th></tr></thead>
+          <tbody>
+            <tr><td>${cursor.getMonth() + 1}月</td><td colspan="2" class="left">別紙出面表参照</td><td>${qtyLabel(totals.qty)}</td><td>人工</td><td class="right">${laborRate ? yenPlain(laborRate, hidden) : ''}</td><td class="right">${yenPlain(totals.labor, hidden)}</td><td></td></tr>
+            <tr><td></td><td colspan="2" class="left">残業</td><td>${totals.otHours || ''}</td><td>h</td><td class="right">${otRate ? yenPlain(otRate, hidden) : ''}</td><td class="right">${totals.overtime ? yenPlain(totals.overtime, hidden) : ''}</td><td></td></tr>
+            <tr><td></td><td colspan="2" class="right">小計</td><td></td><td></td><td></td><td class="right">${yenPlain(totals.subtotal, hidden)}</td><td></td></tr>
+            <tr><td></td><td colspan="2" class="right">消費税${num(s.taxRate)}%</td><td></td><td></td><td></td><td class="right">${yenPlain(totals.tax, hidden)}</td><td></td></tr>
+            <tr><td></td><td colspan="2" class="center">諸経費</td><td></td><td></td><td></td><td></td><td></td></tr>
+            ${expenseRows}
+            <tr><td></td><td colspan="2" class="right">小計</td><td></td><td></td><td></td><td class="right">${yenPlain(totals.expenseTotal, hidden)}</td><td></td></tr>
+            <tr class="invoice-total-row"><td></td><td colspan="4" class="center">合　　計（内税）</td><td></td><td class="right">${yenPlain(totals.total, hidden)}</td><td></td></tr>
+          </tbody>
+        </table>
+        <div class="invoice-bank">
+          <strong>振込先口座</strong>
+          <span>銀行名　${escapeHtml(s.bank || '')}</span>
+          <span>支店名　${escapeHtml(s.branch || '')}</span>
+          <span>口座番号　${escapeHtml(s.accountNo || '')}</span>
+          <span>口座名義　${escapeHtml(s.accountName || '')}</span>
+        </div>
+      </div>
+    </div>`;
+}
+function dayInvoiceSummary(entries, day, expenseColumns) {
+  const dayItems = entries.filter((entry) => Number(entry.date.slice(8, 10)) === day);
+  const sites = [...new Set(dayItems.map((entry) => entry.site).filter(Boolean))].join(' / ');
+  const qty = sumBy(dayItems, (entry) => calcEntry(entry).qty);
+  const unitRate = dayItems.find((entry) => calcEntry(entry).unitRate)?.unitRate || 0;
+  const labor = sumBy(dayItems, (entry) => calcEntry(entry).labor);
+  const otHours = sumBy(dayItems, (entry) => calcEntry(entry).otHours);
+  const otRate = dayItems.find((entry) => calcEntry(entry).otRate)?.otRate || 0;
+  const overtime = sumBy(dayItems, (entry) => calcEntry(entry).overtime);
+  const expenses = expenseColumns.map((col) => sumBy(dayItems, (entry) => num(entry.expenses?.[col.item.id])));
+  const total = labor + overtime + expenses.reduce((sum, value) => sum + value, 0);
+  return { dayItems, sites, qty, unitRate, labor, otHours, otRate, overtime, expenses, total };
+}
+function buildDemenSheet(entries, totals, hidden) {
+  const expenseColumns = totals.expenses;
+  const days = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();
+  const expenseHeaders = `${DEMEN_EXPENSE_LABELS.map((label) => `<th>${escapeHtml(label)}</th>`).join('')}<th>金　額</th>`;
+  const stamp = state.settings.stampImage ? `<img class="demen-stamp" src="${state.settings.stampImage}" alt="印鑑">` : '';
+  const bodyRows = Array.from({ length: days }, (_, index) => {
+    const day = index + 1;
+    const row = dayInvoiceSummary(entries, day, expenseColumns);
+    return `<tr><td>${day}</td><td class="left">${escapeHtml(row.sites)}</td><td>${row.qty || ''}</td><td class="right">${row.unitRate ? yenPlain(row.unitRate, hidden) : ''}</td><td class="right">${row.labor ? yenPlain(row.labor, hidden) : ''}</td><td>${row.otHours || ''}</td><td class="right">${row.otRate ? yenPlain(row.otRate, hidden) : ''}</td><td class="right">${row.overtime ? yenPlain(row.overtime, hidden) : ''}</td>${row.expenses.map((value) => `<td class="right">${value ? yenPlain(value, hidden) : ''}</td>`).join('')}<td class="right">${row.total ? yenPlain(row.total, hidden) : ''}</td></tr>`;
+  }).join('');
+  return `
+    <div class="tbl-wrap demen-sheet-wrap" id="print-demen-wrap">
+      <table class="demen demen-sheet">
+        <thead>
+          <tr class="demen-title-row"><th colspan="4"></th><th>${cursor.getMonth() + 1}</th><th colspan="3" class="left">月 出面表</th><th colspan="5"></th><th class="right">氏名：</th><th>${escapeHtml(state.settings.name || '')}</th></tr>
+          <tr><th>日</th><th>現場名</th><th>人工</th><th>人工単価</th><th>人工合計</th><th>残業h</th><th>残業単価</th><th>残業合計</th>${expenseHeaders}</tr>
+        </thead>
+        <tbody>${bodyRows}</tbody>
+        <tfoot>
+          <tr><td></td><td class="right">小計</td><td>${qtyLabel(totals.qty)}</td><td></td><td class="right">${yenPlain(totals.labor, hidden)}</td><td>${totals.otHours || ''}</td><td></td><td class="right">${totals.overtime ? yenPlain(totals.overtime, hidden) : ''}</td>${totals.expenses.map((item) => `<td class="right">${item.total ? yenPlain(item.total, hidden) : ''}</td>`).join('')}<td class="right">${yenPlain(totals.labor + totals.overtime + totals.expenseTotal, hidden)}</td></tr>
+          <tr class="demen-grand-row"><td colspan="9"></td><td colspan="3" class="right">合計</td><td colspan="3" class="right">${yenPlain(totals.labor + totals.overtime + totals.expenseTotal, hidden)}</td></tr>
+        </tfoot>
+      </table>
+      ${stamp}
+    </div>`;
+}
 function renderInvoiceScreen() {
   const tabs = document.getElementById('co-tabs');
   const body = document.getElementById('inv-body');
   const companies = pickSelectedCompany();
   if (!companies.length) { tabs.innerHTML = ''; body.innerHTML = `<div class="empty"><div class="icon">🧾</div><div>この月の請求対象はまだありません</div><p>自分の予定を入力するとここに会社別帳票が出ます。</p></div>`; return; }
   tabs.innerHTML = companies.map((company) => `<button class="co-chip ${company === selectedCompany ? 'active' : ''}" data-company="${escapeHtml(company)}">${escapeHtml(company)}</button>`).join('');
-  const mode = companyInvoiceMode(selectedCompany);
-  const entries = monthEntries().filter((entry) => entry.type === 'self' && entry.company === selectedCompany);
-  const rows = entries.map((entry) => ({ entry, calc: calcEntry(entry) }));
-  const subtotal = rows.reduce((sum, row) => sum + row.calc.subtotal, 0);
-  const tax = state.settings.invoiceEnabled && mode === 'with' ? Math.round(subtotal * (num(state.settings.taxRate) / 100)) : 0;
-  const total = subtotal + tax;
+  const entries = entriesForInvoiceCompany();
+  const totals = invoiceTotals(entries);
   const hidden = !state.settings.showSales;
-  const expenseSums = expenseItems().map((item) => ({ ...item, total: rows.reduce((sum, row) => sum + num(row.entry.expenses?.[item.id]), 0) })).filter((item) => item.total > 0);
-  body.innerHTML = `<div class="mode-switch"><button class="mode-btn ${mode === 'with' ? 'active' : ''}" data-invoice-mode="with">インボイスあり</button><button class="mode-btn ${mode === 'without' ? 'active' : ''}" data-invoice-mode="without">インボイスなし</button></div><div class="btn-row" style="padding:0 16px 10px"><button class="btn-secondary" data-export-demen>出面CSV</button><button class="btn-secondary" data-export-invoice>請求CSV</button><button class="btn-gold" data-print-demen>出面表印刷</button><button class="btn-primary" data-print-invoice>請求書印刷</button></div><div class="tbl-wrap" id="print-demen-wrap"><table class="demen"><thead><tr><th>日</th><th>現場名</th><th>区分</th><th class="right">人工</th><th class="right">単価</th><th class="right">人工計</th><th class="right">残業h</th><th class="right">残業計</th>${expenseItems().map((item) => `<th class="right">${escapeHtml(item.label)}</th>`).join('')}<th class="right">合計</th></tr></thead><tbody>${rows.map(({ entry, calc }) => `<tr><td>${entry.date.slice(8, 10)}</td><td>${escapeHtml(entry.site)}</td><td>${shiftLabel(entry.shift)}</td><td class="right">${calc.qty}</td><td class="right">${yen(calc.unitRate, hidden)}</td><td class="right">${yen(calc.labor, hidden)}</td><td class="right">${calc.otHours || ''}</td><td class="right">${calc.overtime ? yen(calc.overtime, hidden) : ''}</td>${expenseItems().map((item) => `<td class="right">${num(entry.expenses?.[item.id]) ? yen(entry.expenses[item.id], hidden) : ''}</td>`).join('')}<td class="right">${yen(calc.subtotal, hidden)}</td></tr>`).join('')}</tbody><tfoot><tr><td colspan="${9 + expenseItems().length}" class="right">月合計</td><td class="right">${yen(subtotal, hidden)}</td></tr></tfoot></table></div><div class="inv-box" id="print-invoice-box"><div class="inv-hd"><div class="inv-hd-title">請求書</div><div class="inv-hd-to">${escapeHtml(selectedCompany)} 御中</div><div class="inv-hd-date">請求日 ${toYmd(new Date())}</div><div class="inv-badge">${mode === 'with' && state.settings.invoiceEnabled ? 'インボイス対応' : 'インボイスなし'}</div></div><div class="inv-amt-box"><div class="inv-amt-lbl">ご請求金額</div><div class="inv-amt-val ${hidden ? 'hidden-amount' : ''}">${yen(total, hidden)}</div><div class="inv-amt-note">${fmtMonth(cursor)}分</div></div><div class="inv-sec"><div class="inv-sec-title">請求内訳</div><div class="inv-row"><span class="lbl">売上（税別）</span><span class="val ${hidden ? 'hidden-amount' : ''}">${yen(subtotal, hidden)}</span></div><div class="inv-row"><span class="lbl">消費税 (${state.settings.taxRate}%)</span><span class="val ${hidden ? 'hidden-amount' : ''}">${yen(tax, hidden)}</span></div><div class="inv-total"><span>合計</span><span class="val ${hidden ? 'hidden-amount' : ''}">${yen(total, hidden)}</span></div></div><div class="inv-sec"><div class="inv-sec-title">経費内訳</div>${expenseSums.length ? expenseSums.map((item) => `<div class="inv-row"><span class="lbl">${escapeHtml(item.label)}</span><span class="val ${hidden ? 'hidden-amount' : ''}">${yen(item.total, hidden)}</span></div>`).join('') : `<div class="inv-row"><span class="lbl">経費なし</span><span class="val">-</span></div>`}${state.settings.invoiceEnabled && mode === 'with' && state.settings.invoiceNo ? `<div class="inv-row"><span class="lbl">登録番号</span><span class="val">${escapeHtml(state.settings.invoiceNo)}</span></div>` : ''}</div>${state.settings.bank ? `<div class="inv-bank"><strong>振込先</strong>${escapeHtml(state.settings.bank)} ${escapeHtml(state.settings.branch)}<br>${escapeHtml(state.settings.accountNo)}<br>${escapeHtml(state.settings.accountName)}</div>` : ''}${state.settings.name || state.settings.companyName ? `<div class="inv-sender"><strong>${escapeHtml(state.settings.companyName || state.settings.name)}</strong>${state.settings.address ? `${escapeHtml(state.settings.address)}<br>` : ''}${state.settings.tel ? `TEL ${escapeHtml(state.settings.tel)}` : ''}</div>` : ''}</div>`;
+  body.innerHTML = `<div class="btn-row invoice-actions" style="padding:0 16px 10px"><button class="btn-primary" data-print-invoice>請求書印刷</button><button class="btn-gold" data-print-demen>出面表印刷</button><button class="btn-secondary" data-export-invoice>請求CSV</button><button class="btn-secondary" data-export-demen>出面CSV</button></div>${buildInvoiceSheet(entries, totals, hidden)}${buildDemenSheet(entries, totals, hidden)}`;
 }
 function expenseTotals(entries) {
   return expenseItems().map((item) => ({
@@ -427,7 +528,12 @@ function renderExpenseRows(title, rows) {
 function renderSyncScreen() {
   const month = monthEntries();
   const sub = document.getElementById('sync-sub'); if (sub) sub.textContent = '出力と引き継ぎ';
-  const calendarCount = document.getElementById('calendar-export-count'); if (calendarCount) calendarCount.textContent = `${month.length}件`;
+  const rangeStart = document.getElementById('google-export-start');
+  const rangeEnd = document.getElementById('google-export-end');
+  if (rangeStart && !rangeStart.value) rangeStart.value = toYmd(new Date(cursor.getFullYear(), cursor.getMonth(), 1));
+  if (rangeEnd && !rangeEnd.value) rangeEnd.value = toYmd(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0));
+  const rangeEntries = calendarRangeEntries();
+  const calendarCount = document.getElementById('calendar-export-count'); if (calendarCount) calendarCount.textContent = `${rangeEntries.length}件`;
   const backupStatus = document.getElementById('backup-status'); if (backupStatus) backupStatus.textContent = `${state.entries.length}予定`;
   const clientInput = document.getElementById('google-client-id'); if (clientInput && !clientInput.value) clientInput.value = state.settings.googleClientId || '';
   const driveStatus = document.getElementById('drive-sync-status'); if (driveStatus) driveStatus.textContent = googleAccessToken ? 'ログイン済み' : (state.settings.googleClientId ? '設定済み' : '未設定');
@@ -463,6 +569,11 @@ function renderSettings() {
   document.getElementById('tgl-sales-overtime')?.classList.toggle('on', !!salesParts.overtime);
   document.getElementById('tgl-sales-expenses')?.classList.toggle('on', !!salesParts.expenses);
   document.getElementById('inv-no-row').classList.toggle('hidden', !s.invoiceEnabled);
+  const stampPreview = document.getElementById('stamp-preview');
+  if (stampPreview) {
+    stampPreview.src = s.stampImage || '';
+    stampPreview.classList.toggle('hidden', !s.stampImage);
+  }
   renderSettingListEditors();
 }
 function createDefaultEntry(type, date) {
@@ -857,11 +968,28 @@ function buildIcs(entries) {
   lines.push('END:VCALENDAR', '');
   return lines.join('\r\n');
 }
-function exportMonthCalendarIcs() {
-  const entries = monthEntries();
-  if (!entries.length) { setSyncLog('今月の予定がありません'); return; }
-  downloadText(`${monthKey(cursor)}_NINQ.ics`, buildIcs(entries), 'text/calendar;charset=utf-8;');
-  setSyncLog(`${fmtMonth(cursor)}の予定${entries.length}件を出力しました`);
+function calendarRangeValues() {
+  const monthStart = toYmd(new Date(cursor.getFullYear(), cursor.getMonth(), 1));
+  const monthEnd = toYmd(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0));
+  return {
+    start: document.getElementById('google-export-start')?.value || monthStart,
+    end: document.getElementById('google-export-end')?.value || monthEnd,
+  };
+}
+function calendarRangeEntries() {
+  const { start, end } = calendarRangeValues();
+  if (!start || !end || end < start) return [];
+  return state.entries.filter((entry) => entry.date >= start && entry.date <= end).sort((a, b) => a.date.localeCompare(b.date));
+}
+function exportRangeCalendarIcs() {
+  const { start, end } = calendarRangeValues();
+  if (!start || !end) { setSyncLog('開始日と終了日を選んでください'); return; }
+  if (end < start) { setSyncLog('終了日は開始日以降にしてください'); return; }
+  const entries = calendarRangeEntries();
+  if (!entries.length) { setSyncLog(`${start}〜${end}の予定がありません`); return; }
+  downloadText(`${start}_${end}_NINQ.ics`, buildIcs(entries), 'text/calendar;charset=utf-8;');
+  setSyncLog(`${start}〜${end}の予定${entries.length}件を出力しました`);
+  renderSyncScreen();
 }
 function openSelectedDayGoogleCalendar() {
   const entries = dayEntries(selectedDate);
@@ -941,9 +1069,28 @@ function saveSettings() {
     overtime: document.getElementById('tgl-sales-overtime')?.classList.contains('on') !== false,
     expenses: document.getElementById('tgl-sales-expenses')?.classList.contains('on') === true,
   };
-  state.settings = { ...state.settings, name: document.getElementById('st-name').value.trim(), address: document.getElementById('st-addr').value.trim(), tel: document.getElementById('st-tel').value.trim(), companyName: document.getElementById('st-co').value.trim(), bank: document.getElementById('st-bank').value.trim(), branch: document.getElementById('st-branch').value.trim(), accountNo: document.getElementById('st-accno').value.trim(), accountName: document.getElementById('st-accname').value.trim(), invoiceNo: document.getElementById('st-invno').value.trim(), invoiceEnabled: document.getElementById('tgl-inv').classList.contains('on'), showSubcontract: document.getElementById('tgl-subcontract')?.classList.contains('on') !== false, salesTotalParts, taxRate: num(document.getElementById('st-tax').value || 10), defaultDayRate: 0, defaultNightRate: 0, defaultOtRate: 0, companyRates, companies: companyRates.map((item) => item.name), expenseItems: linesToObjects(document.getElementById('st-expenses').value, expenseItems()), updatedAt: new Date().toISOString() };
+  state.settings = { ...state.settings, name: document.getElementById('st-name').value.trim(), address: document.getElementById('st-addr').value.trim(), tel: document.getElementById('st-tel').value.trim(), companyName: document.getElementById('st-co').value.trim(), bank: document.getElementById('st-bank').value.trim(), branch: document.getElementById('st-branch').value.trim(), accountNo: document.getElementById('st-accno').value.trim(), accountName: document.getElementById('st-accname').value.trim(), invoiceNo: document.getElementById('st-invno').value.trim(), invoiceEnabled: document.getElementById('tgl-inv').classList.contains('on'), showSubcontract: document.getElementById('tgl-subcontract')?.classList.contains('on') !== false, salesTotalParts, taxRate: num(document.getElementById('st-tax').value || 10), stampImage: state.settings.stampImage || '', defaultDayRate: 0, defaultNightRate: 0, defaultOtRate: 0, companyRates, companies: companyRates.map((item) => item.name), expenseItems: linesToObjects(document.getElementById('st-expenses').value, expenseItems()), updatedAt: new Date().toISOString() };
   state.entries = state.entries.map((entry) => { const nextExpenses = {}; expenseItems().forEach((item) => { nextExpenses[item.id] = num(entry.expenses?.[item.id]); }); return { ...entry, expenses: nextExpenses }; });
   saveState(); renderAll(); showSaveFeedback('設定を保存しました');
+}
+function handleStampFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    state.settings.stampImage = String(reader.result || '');
+    state.settings.updatedAt = new Date().toISOString();
+    saveState();
+    renderAll();
+    showSaveFeedback('印鑑を登録しました');
+  };
+  reader.readAsDataURL(file);
+}
+function clearStampImage() {
+  state.settings.stampImage = '';
+  state.settings.updatedAt = new Date().toISOString();
+  saveState();
+  renderAll();
+  showSaveFeedback('印鑑を削除しました');
 }
 function deleteEntry(id) {
   const target = state.entries.find((entry) => entry.id === id);
@@ -987,10 +1134,8 @@ function exportSubPaymentsCsv() {
   downloadCsv(`${monthKey(cursor)}_外注支払い.csv`, rows);
 }
 function exportInvoiceCsv() {
-  const entries = monthEntries().filter((entry) => entry.type === 'self' && entry.company === selectedCompany);
-  const subtotal = entries.reduce((sum, entry) => sum + calcEntry(entry).subtotal, 0);
-  const tax = state.settings.invoiceEnabled && companyInvoiceMode(selectedCompany) === 'with' ? Math.round(subtotal * (num(state.settings.taxRate) / 100)) : 0;
-  downloadCsv(`${monthKey(cursor)}_${selectedCompany}_請求書.csv`, [['請求先', selectedCompany], ['対象月', fmtMonth(cursor)], ['売上（税別）', subtotal], ['消費税', tax], ['合計', subtotal + tax]]);
+  const totals = invoiceTotals(entriesForInvoiceCompany());
+  downloadCsv(`${monthKey(cursor)}_${selectedCompany}_請求書.csv`, [['請求先', selectedCompany], ['対象月', fmtMonth(cursor)], ['売上（税別）', totals.subtotal], ['消費税', totals.tax], ['諸経費', totals.expenseTotal], ['合計', totals.total]]);
 }
 function printView(kind) {
   const screen = document.getElementById('sc-inv'); screen.classList.add('print-active');
@@ -1014,13 +1159,16 @@ function bindEvents() {
   document.getElementById('save-google-settings-btn')?.addEventListener('click', saveGoogleSettings);
   document.getElementById('google-login-btn')?.addEventListener('click', loginGoogleDrive);
   document.getElementById('drive-sync-now-btn')?.addEventListener('click', syncGoogleDrive);
-  document.getElementById('google-export-month-btn')?.addEventListener('click', exportMonthCalendarIcs);
+  document.getElementById('google-export-range-btn')?.addEventListener('click', exportRangeCalendarIcs);
   document.getElementById('google-open-selected-day-btn')?.addEventListener('click', openSelectedDayGoogleCalendar);
   document.getElementById('backup-export-btn')?.addEventListener('click', exportBackupJson);
   document.getElementById('backup-import-btn')?.addEventListener('click', () => document.getElementById('backup-file')?.click());
   document.getElementById('backup-file')?.addEventListener('change', (event) => { importBackupJson(event.target.files?.[0]); event.target.value = ''; });
   document.getElementById('receipt-pick-btn')?.addEventListener('click', () => document.getElementById('receipt-file')?.click());
   document.getElementById('receipt-file')?.addEventListener('change', (event) => { handleReceiptFiles(event.target.files); event.target.value = ''; });
+  document.getElementById('stamp-pick-btn')?.addEventListener('click', () => document.getElementById('st-stamp-file')?.click());
+  document.getElementById('st-stamp-file')?.addEventListener('change', (event) => { handleStampFile(event.target.files?.[0]); event.target.value = ''; });
+  document.getElementById('stamp-clear-btn')?.addEventListener('click', clearStampImage);
   document.getElementById('tgl-inv').addEventListener('click', () => { document.getElementById('tgl-inv').classList.toggle('on'); document.getElementById('inv-no-row').classList.toggle('hidden', !document.getElementById('tgl-inv').classList.contains('on')); });
   document.getElementById('tgl-subcontract')?.addEventListener('click', () => document.getElementById('tgl-subcontract').classList.toggle('on'));
   ['tgl-sales-labor', 'tgl-sales-overtime', 'tgl-sales-expenses'].forEach((id) => document.getElementById(id)?.addEventListener('click', () => document.getElementById(id).classList.toggle('on')));
@@ -1063,7 +1211,6 @@ function bindEvents() {
     const delReceipt = event.target.closest('[data-del-receipt]');
     if (delReceipt) { state.receipts = (state.receipts || []).filter((receipt) => receipt.id !== delReceipt.dataset.delReceipt); saveState(); renderAll(); return; }
     const companyChip = event.target.closest('[data-company]'); if (companyChip) { selectedCompany = companyChip.dataset.company; renderInvoiceScreen(); return; }
-    const modeButton = event.target.closest('[data-invoice-mode]'); if (modeButton) { setCompanyInvoiceMode(selectedCompany, modeButton.dataset.invoiceMode); renderInvoiceScreen(); return; }
     if (event.target.matches('#cancel-entry-btn')) { closeModal(); return; }
     if (event.target.matches('[data-export-demen]')) exportDemenCsv();
     if (event.target.matches('[data-export-invoice]')) exportInvoiceCsv();
@@ -1084,6 +1231,7 @@ function bindEvents() {
 
   document.addEventListener('change', (event) => {
     if (event.target.id === 'f-date' || event.target.id === 'f-end-date') { renderRangeExclusions(); return; }
+    if (event.target.id === 'google-export-start' || event.target.id === 'google-export-end') { renderSyncScreen(); return; }
     if (event.target.matches('[data-range-exclude]')) { event.target.closest('.range-exclude-chip')?.classList.toggle('checked', event.target.checked); return; }
     if (event.target.id === 'f-company-select') { const input = document.getElementById('f-company'); if (input && event.target.value) { input.value = event.target.value; applyCompanyRate(event.target.value); updateSubcontractDiff(); } return; }
     if (event.target.matches('[data-receipt-category]')) { updateReceiptField(event.target.dataset.receiptCategory, { category: event.target.value, status: '確認済み' }); renderAll(); return; }
