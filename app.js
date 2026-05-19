@@ -483,16 +483,26 @@ function buildDemenSheet(entries, totals, hidden) {
   const expenseColumns = totals.expenses;
   const days = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();
   const expenseHeaders = `${DEMEN_EXPENSE_LABELS.map((label) => `<th>${escapeHtml(label)}</th>`).join('')}<th>金　額</th>`;
+  const shiftOrder = { day: 1, trip: 2, night: 3 };
+  const demenRow = (day, entry = null) => {
+    if (!entry) return `<tr><td>${day}</td><td class="left"></td><td></td><td class="right"></td><td class="right"></td><td></td><td class="right"></td><td class="right"></td>${expenseColumns.map(() => '<td class="right"></td>').join('')}<td class="right"></td></tr>`;
+    const calc = calcEntry(entry);
+    const expenses = expenseColumns.map((col) => num(entry.expenses?.[col.item.id]));
+    const siteClass = entry.shift === 'night' ? 'left demen-night-site' : 'left';
+    return `<tr><td>${day}</td><td class="${siteClass}">${escapeHtml(entry.site || '')}</td><td>${calc.qty || ''}</td><td class="right">${calc.unitRate ? yenPlain(calc.unitRate, hidden) : ''}</td><td class="right">${calc.labor ? yenPlain(calc.labor, hidden) : ''}</td><td>${calc.otHours || ''}</td><td class="right">${calc.otRate ? yenPlain(calc.otRate, hidden) : ''}</td><td class="right">${calc.overtime ? yenPlain(calc.overtime, hidden) : ''}</td>${expenses.map((value) => `<td class="right">${value ? yenPlain(value, hidden) : ''}</td>`).join('')}<td class="right">${calc.subtotal ? yenPlain(calc.subtotal, hidden) : ''}</td></tr>`;
+  };
   const bodyRows = Array.from({ length: days }, (_, index) => {
     const day = index + 1;
-    const row = dayInvoiceSummary(entries, day, expenseColumns);
-    return `<tr><td>${day}</td><td class="left">${escapeHtml(row.sites)}</td><td>${row.qty || ''}</td><td class="right">${row.unitRate ? yenPlain(row.unitRate, hidden) : ''}</td><td class="right">${row.labor ? yenPlain(row.labor, hidden) : ''}</td><td>${row.otHours || ''}</td><td class="right">${row.otRate ? yenPlain(row.otRate, hidden) : ''}</td><td class="right">${row.overtime ? yenPlain(row.overtime, hidden) : ''}</td>${row.expenses.map((value) => `<td class="right">${value ? yenPlain(value, hidden) : ''}</td>`).join('')}<td class="right">${row.total ? yenPlain(row.total, hidden) : ''}</td></tr>`;
+    const dayItems = entries
+      .filter((entry) => Number(entry.date.slice(8, 10)) === day)
+      .sort((a, b) => (shiftOrder[a.shift] || 9) - (shiftOrder[b.shift] || 9) || String(a.site || '').localeCompare(String(b.site || ''), 'ja'));
+    return dayItems.length ? dayItems.map((entry) => demenRow(day, entry)).join('') : demenRow(day);
   }).join('');
   return `
     <div class="tbl-wrap demen-sheet-wrap" id="print-demen-wrap">
       <table class="demen demen-sheet">
         <thead>
-          <tr class="demen-title-row"><th colspan="4"></th><th>${cursor.getMonth() + 1}</th><th colspan="3" class="left">月 出面表</th><th colspan="5"></th><th class="right">氏名：</th><th>${escapeHtml(state.settings.name || '')}</th></tr>
+          <tr class="demen-title-row"><th colspan="4"></th><th class="demen-title-main">${cursor.getMonth() + 1}</th><th colspan="3" class="left demen-title-main">月 出面表</th><th colspan="5"></th><th class="right demen-title-name">氏名：</th><th class="demen-title-name">${escapeHtml(state.settings.name || '')}</th></tr>
           <tr><th>日</th><th>現場名</th><th>人工</th><th>人工単価</th><th>人工合計</th><th>残業h</th><th>残業単価</th><th>残業合計</th>${expenseHeaders}</tr>
         </thead>
         <tbody>${bodyRows}</tbody>
