@@ -692,16 +692,29 @@ function loadGoogleIdentity() {
   if (window.google?.accounts?.oauth2) return Promise.resolve();
   return new Promise((resolve, reject) => {
     const existing = document.querySelector('script[data-google-identity]');
-    if (existing) { existing.addEventListener('load', resolve, { once: true }); existing.addEventListener('error', reject, { once: true }); return; }
+    if (existing) {
+      if (existing.dataset.loaded === 'true') { resolve(); return; }
+      existing.addEventListener('load', resolve, { once: true });
+      existing.addEventListener('error', reject, { once: true });
+      return;
+    }
     const script = document.createElement('script');
     script.src = 'https://accounts.google.com/gsi/client';
     script.async = true;
     script.defer = true;
     script.dataset.googleIdentity = 'true';
-    script.onload = resolve;
+    script.onload = () => { script.dataset.loaded = 'true'; resolve(); };
     script.onerror = () => reject(new Error('Googleログインの読み込みに失敗しました'));
     document.head.appendChild(script);
   });
+}
+function googleSyncErrorMessage(error) {
+  const text = String(error?.message || error?.type || error || '');
+  if (/popup|closed/i.test(text)) return 'ログイン画面が開けませんでした。スマホではホーム画面アプリではなくChrome/SafariでNINQを開いて、もう一度Googleログインしてください。';
+  if (/access_denied|403/i.test(text)) return 'Googleにブロックされました。OAuthのテストユーザーにこのGoogleアカウントが追加されているか確認してください。';
+  if (/invalid_client|origin|redirect_uri/i.test(text)) return 'GoogleクライアントIDの設定が合っていません。承認済みJavaScript生成元に https://tomomamomot.github.io を入れてください。';
+  if (/Failed to fetch|NetworkError|読み込みに失敗/i.test(text)) return '通信に失敗しました。電波状況、広告ブロック、Googleログインのブロック設定を確認してください。';
+  return text || 'Google Drive同期に失敗しました';
 }
 async function getDriveToken(prompt = '') {
   const clientId = document.getElementById('google-client-id')?.value.trim() || state.settings.googleClientId;
@@ -717,6 +730,7 @@ async function getDriveToken(prompt = '') {
         const status = document.getElementById('drive-sync-status'); if (status) status.textContent = 'ログイン済み';
         resolve(googleAccessToken);
       },
+      error_callback: (error) => reject(error),
     });
     googleTokenClient.requestAccessToken({ prompt });
   });
@@ -796,7 +810,7 @@ async function loginGoogleDrive() {
     await getDriveToken('consent');
     setSyncLog('Googleログインしました。今すぐ同期できます');
   } catch (error) {
-    setSyncLog(error.message || 'Googleログインに失敗しました');
+    setSyncLog(googleSyncErrorMessage(error));
   }
 }
 async function syncGoogleDrive() {
@@ -817,7 +831,7 @@ async function syncGoogleDrive() {
     renderAll();
     setSyncLog(`同期しました。予定 ${state.entries.length}件`);
   } catch (error) {
-    setSyncLog(error.message || 'Google Drive同期に失敗しました');
+    setSyncLog(googleSyncErrorMessage(error));
   }
 }
 function downloadText(filename, text, type) {
@@ -1107,5 +1121,5 @@ function bindEvents() {
 }
 
 function registerPwa() { if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch((error) => console.warn('sw failed', error)); }
-function init() { bindEvents(); renderAll(); registerPwa(); }
+function init() { bindEvents(); renderAll(); loadGoogleIdentity().catch(() => {}); registerPwa(); }
 document.addEventListener('DOMContentLoaded', init);
