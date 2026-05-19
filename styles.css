@@ -105,7 +105,9 @@ input[type="number"]{appearance:textfield;-moz-appearance:textfield}
 .date-picker-week,.date-picker-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
 .date-picker-week span{text-align:center;color:var(--sub);font-size:12px;font-weight:900;padding:4px 0}
 .date-picker-day{height:39px;border:none;border-radius:12px;background:#f6f8fb;color:var(--ink);font-size:15px;font-weight:850}
+.date-picker-day.sun{color:var(--red)}
 .date-picker-day.other{color:#9aa3af;background:#fafbfc}
+.date-picker-day.other.sun{color:#d98b8b}
 .date-picker-day.selected{background:var(--accent);color:#fff}
 .date-picker-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:13px}
 .date-picker-actions .btn-primary,.date-picker-actions .btn-secondary{padding:12px 14px}
