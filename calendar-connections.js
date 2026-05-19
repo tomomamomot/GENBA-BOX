@@ -77,6 +77,8 @@
     return HOLIDAY_CACHE.get(year).get(ymd) || '';
   }
 
+  window.ninqHolidayName = holidayName;
+
   function bandKey(entry) {
     const company = String(entry?.company || '').trim();
     const site = String(entry?.site || '').trim();

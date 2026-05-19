@@ -508,6 +508,7 @@ function renderDatePicker() {
     if (date.getMonth() !== datePickerCursor.getMonth()) classes.push('other');
     if (ymd === datePickerValue) classes.push('selected');
     if (date.getDay() === 0) classes.push('sun');
+    if (typeof window.ninqHolidayName === 'function' && window.ninqHolidayName(ymd)) classes.push('holiday');
     cells.push(`<button class="${classes.join(' ')}" type="button" data-date-pick="${ymd}">${date.getDate()}</button>`);
   }
   picker.innerHTML = `
