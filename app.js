@@ -5,7 +5,7 @@ const DRIVE_SYNC_FILE = 'ninq-sync.json';
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
 const DEFAULT_EXPENSE_ITEMS = ['交通費', '駐車場代', '宿泊費', 'ガソリン代', '資材代', 'その他'];
 const DEFAULT_SETTINGS = {
-  name: '', address: '', tel: '', companyName: '', bank: '', branch: '', accountNo: '', accountName: '',
+  name: '', postalCode: '', address: '', tel: '', companyName: '', bank: '', branch: '', accountNo: '', accountName: '',
   invoiceNo: '', invoiceEnabled: true, taxRate: 10, stampImage: '',
   defaultDayRate: 0, defaultNightRate: 0, defaultOtRate: 0,
   companies: [], companyRates: [], expenseItems: DEFAULT_EXPENSE_ITEMS.map((label, index) => ({ id: `exp${index + 1}`, label })),
@@ -425,6 +425,7 @@ function buildInvoiceSheet(entries, totals, hidden) {
   const laborRate = entries.find((entry) => calcEntry(entry).unitRate)?.unitRate || 0;
   const otRate = entries.find((entry) => calcEntry(entry).otRate)?.otRate || 0;
   const stamp = s.stampImage ? `<img class="invoice-stamp" src="${s.stampImage}" alt="印鑑">` : '';
+  const senderAddress = [s.postalCode ? `〒 ${escapeHtml(s.postalCode)}` : '', s.address ? escapeHtml(s.address) : ''].filter(Boolean).join(' ');
   const expenseRows = totals.expenses.map((item) => `<tr><td></td><td colspan="2" class="left">${escapeHtml(item.label)}</td><td></td><td></td><td></td><td class="right">${item.total ? yenPlain(item.total, hidden) : ''}</td><td></td></tr>`).join('');
   return `
     <div class="invoice-scroll">
@@ -436,7 +437,7 @@ function buildInvoiceSheet(entries, totals, hidden) {
         <div class="invoice-sender">
           ${stamp}
           <strong>${escapeHtml(s.companyName || s.name || '')}</strong>
-          <span>${s.address ? `〒 ${escapeHtml(s.address)}` : ''}</span>
+          <span>${senderAddress}</span>
           <span>${s.tel ? `TEL ${escapeHtml(s.tel)}` : ''}</span>
           <span>${s.invoiceNo ? `登録番号：${escapeHtml(s.invoiceNo)}` : ''}</span>
         </div>
@@ -482,7 +483,6 @@ function buildDemenSheet(entries, totals, hidden) {
   const expenseColumns = totals.expenses;
   const days = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();
   const expenseHeaders = `${DEMEN_EXPENSE_LABELS.map((label) => `<th>${escapeHtml(label)}</th>`).join('')}<th>金　額</th>`;
-  const stamp = state.settings.stampImage ? `<img class="demen-stamp" src="${state.settings.stampImage}" alt="印鑑">` : '';
   const bodyRows = Array.from({ length: days }, (_, index) => {
     const day = index + 1;
     const row = dayInvoiceSummary(entries, day, expenseColumns);
@@ -501,7 +501,6 @@ function buildDemenSheet(entries, totals, hidden) {
           <tr class="demen-grand-row"><td colspan="9"></td><td colspan="3" class="right">合計</td><td colspan="3" class="right">${yenPlain(totals.labor + totals.overtime + totals.expenseTotal, hidden)}</td></tr>
         </tfoot>
       </table>
-      ${stamp}
     </div>`;
 }
 function renderInvoiceScreen() {
@@ -555,7 +554,7 @@ function renderReceiptScreen() {
 }
 function renderSettings() {
   const s = state.settings;
-  const map = { 'st-name': s.name, 'st-addr': s.address, 'st-tel': s.tel, 'st-co': s.companyName, 'st-bank': s.bank, 'st-branch': s.branch, 'st-accno': s.accountNo, 'st-accname': s.accountName, 'st-invno': s.invoiceNo };
+  const map = { 'st-name': s.name, 'st-postal': s.postalCode, 'st-addr': s.address, 'st-tel': s.tel, 'st-co': s.companyName, 'st-bank': s.bank, 'st-branch': s.branch, 'st-accno': s.accountNo, 'st-accname': s.accountName, 'st-invno': s.invoiceNo };
   Object.entries(map).forEach(([id, value]) => { const el = document.getElementById(id); if (el) el.value = value ?? ''; });
   document.getElementById('st-tax').value = String(s.taxRate);
   const presets = normalizeCompanyRates(s.companyRates, s.companies);
@@ -1069,7 +1068,7 @@ function saveSettings() {
     overtime: document.getElementById('tgl-sales-overtime')?.classList.contains('on') !== false,
     expenses: document.getElementById('tgl-sales-expenses')?.classList.contains('on') === true,
   };
-  state.settings = { ...state.settings, name: document.getElementById('st-name').value.trim(), address: document.getElementById('st-addr').value.trim(), tel: document.getElementById('st-tel').value.trim(), companyName: document.getElementById('st-co').value.trim(), bank: document.getElementById('st-bank').value.trim(), branch: document.getElementById('st-branch').value.trim(), accountNo: document.getElementById('st-accno').value.trim(), accountName: document.getElementById('st-accname').value.trim(), invoiceNo: document.getElementById('st-invno').value.trim(), invoiceEnabled: document.getElementById('tgl-inv').classList.contains('on'), showSubcontract: document.getElementById('tgl-subcontract')?.classList.contains('on') !== false, salesTotalParts, taxRate: num(document.getElementById('st-tax').value || 10), stampImage: state.settings.stampImage || '', defaultDayRate: 0, defaultNightRate: 0, defaultOtRate: 0, companyRates, companies: companyRates.map((item) => item.name), expenseItems: linesToObjects(document.getElementById('st-expenses').value, expenseItems()), updatedAt: new Date().toISOString() };
+  state.settings = { ...state.settings, name: document.getElementById('st-name').value.trim(), postalCode: document.getElementById('st-postal').value.trim(), address: document.getElementById('st-addr').value.trim(), tel: document.getElementById('st-tel').value.trim(), companyName: document.getElementById('st-co').value.trim(), bank: document.getElementById('st-bank').value.trim(), branch: document.getElementById('st-branch').value.trim(), accountNo: document.getElementById('st-accno').value.trim(), accountName: document.getElementById('st-accname').value.trim(), invoiceNo: document.getElementById('st-invno').value.trim(), invoiceEnabled: document.getElementById('tgl-inv').classList.contains('on'), showSubcontract: document.getElementById('tgl-subcontract')?.classList.contains('on') !== false, salesTotalParts, taxRate: num(document.getElementById('st-tax').value || 10), stampImage: state.settings.stampImage || '', defaultDayRate: 0, defaultNightRate: 0, defaultOtRate: 0, companyRates, companies: companyRates.map((item) => item.name), expenseItems: linesToObjects(document.getElementById('st-expenses').value, expenseItems()), updatedAt: new Date().toISOString() };
   state.entries = state.entries.map((entry) => { const nextExpenses = {}; expenseItems().forEach((item) => { nextExpenses[item.id] = num(entry.expenses?.[item.id]); }); return { ...entry, expenses: nextExpenses }; });
   saveState(); renderAll(); showSaveFeedback('設定を保存しました');
 }
