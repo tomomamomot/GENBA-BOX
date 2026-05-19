@@ -436,7 +436,7 @@ function buildInvoiceSheet(entries, totals, hidden) {
         <div class="invoice-sender">
           ${stamp}
           <strong>${escapeHtml(s.companyName || s.name || '')}</strong>
-          <span>${escapeHtml(s.address || '')}</span>
+          <span>${s.address ? `〒 ${escapeHtml(s.address)}` : ''}</span>
           <span>${s.tel ? `TEL ${escapeHtml(s.tel)}` : ''}</span>
           <span>${s.invoiceNo ? `登録番号：${escapeHtml(s.invoiceNo)}` : ''}</span>
         </div>
@@ -1116,7 +1116,7 @@ function gcalEntry(id) {
   window.open(googleCalendarUrl(entry), '_blank');
 }
 function csvCell(value) { const text = String(value ?? ''); return `"${text.replaceAll('"', '""')}"`; }
-function downloadCsv(filename, rows) { const csv = rows.map((row) => row.map(csvCell).join(',')).join('\r\n'); const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = filename; link.click(); URL.revokeObjectURL(link.href); }
+function downloadCsv(filename, rows) { const csv = `\ufeff${rows.map((row) => row.map(csvCell).join(',')).join('\r\n')}`; const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = filename; link.click(); URL.revokeObjectURL(link.href); }
 function exportDemenCsv() {
   const rows = [['日付', '会社名', '現場名', '区分', '人工', '単価', '人工計', '残業h', '残業計', ...expenseItems().map((item) => item.label), '合計']];
   monthEntries().filter((entry) => entry.type === 'self' && entry.company === selectedCompany).forEach((entry) => {
