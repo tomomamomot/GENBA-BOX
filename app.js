@@ -26,6 +26,7 @@ let datePickerValue = selectedDate;
 let datePickerCursor = startOfMonth(new Date());
 let googleTokenClient = null;
 let googleAccessToken = '';
+let settingsAutosaveTimer = null;
 
 function loadState() {
   try {
@@ -223,12 +224,14 @@ function addCompanyPreset() {
   writeCompanyPresetValues(next);
   ['st-company-new', 'st-company-day-new', 'st-company-night-new', 'st-company-ot-new'].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ''; });
   renderCompanyPresetList();
+  scheduleSettingsAutosave({ immediate: true });
 }
 function addSettingListItem(hiddenId, inputId) {
   const input = document.getElementById(inputId); if (!input) return;
   const value = input.value.trim(); if (!value) return;
   const values = [...new Set([...settingListValues(hiddenId), value])];
   writeSettingList(hiddenId, values); input.value = ''; renderSettingListEditors();
+  scheduleSettingsAutosave({ immediate: true });
 }
 function showSaveFeedback(message) {
   const el = document.getElementById('save-status'); if (!el) { alert(message); return; }
@@ -1070,7 +1073,7 @@ function handleReceiptFiles(files) {
   state.receipts = [...(state.receipts || []), ...list.map((file) => normalizeReceipt({ fileName: file.name, importedAt: new Date().toISOString(), category: guessReceiptCategory(file.name), date: guessReceiptDate(file.name), amount: guessReceiptAmount(file.name), status: '仕分け候補' }))];
   saveState(); renderReceiptScreen();
 }
-function saveSettings() {
+function persistSettingsFromForm({ render = false, feedback = '' } = {}) {
   const linesToObjects = (text, previous) => text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((label, index) => ({ id: previous[index]?.id || `exp${index + 1}`, label }));
   const companyRates = companyPresetValues();
   const salesTotalParts = {
@@ -1080,7 +1083,30 @@ function saveSettings() {
   };
   state.settings = { ...state.settings, name: document.getElementById('st-name').value.trim(), postalCode: document.getElementById('st-postal').value.trim(), address: document.getElementById('st-addr').value.trim(), tel: document.getElementById('st-tel').value.trim(), companyName: document.getElementById('st-co').value.trim(), bank: document.getElementById('st-bank').value.trim(), branch: document.getElementById('st-branch').value.trim(), accountNo: document.getElementById('st-accno').value.trim(), accountName: document.getElementById('st-accname').value.trim(), invoiceNo: document.getElementById('st-invno').value.trim(), invoiceEnabled: document.getElementById('tgl-inv').classList.contains('on'), showSubcontract: document.getElementById('tgl-subcontract')?.classList.contains('on') !== false, salesTotalParts, taxRate: num(document.getElementById('st-tax').value || 10), stampImage: state.settings.stampImage || '', defaultDayRate: 0, defaultNightRate: 0, defaultOtRate: 0, companyRates, companies: companyRates.map((item) => item.name), expenseItems: linesToObjects(document.getElementById('st-expenses').value, expenseItems()), updatedAt: new Date().toISOString() };
   state.entries = state.entries.map((entry) => { const nextExpenses = {}; expenseItems().forEach((item) => { nextExpenses[item.id] = num(entry.expenses?.[item.id]); }); return { ...entry, expenses: nextExpenses }; });
-  saveState(); renderAll(); showSaveFeedback('設定を保存しました');
+  saveState();
+  if (render) renderAll();
+  if (feedback) showSaveFeedback(feedback);
+}
+function saveSettings() {
+  window.clearTimeout(settingsAutosaveTimer);
+  settingsAutosaveTimer = null;
+  persistSettingsFromForm({ render: true, feedback: '設定を保存しました' });
+}
+function scheduleSettingsAutosave({ immediate = false } = {}) {
+  if (!document.getElementById('sc-st')) return;
+  window.clearTimeout(settingsAutosaveTimer);
+  const save = () => {
+    settingsAutosaveTimer = null;
+    persistSettingsFromForm({ render: false, feedback: '自動保存しました' });
+  };
+  if (immediate) { save(); return; }
+  settingsAutosaveTimer = window.setTimeout(save, 900);
+}
+function flushSettingsAutosave() {
+  if (!settingsAutosaveTimer) return;
+  window.clearTimeout(settingsAutosaveTimer);
+  settingsAutosaveTimer = null;
+  persistSettingsFromForm({ render: false });
 }
 function handleStampFile(file) {
   if (!file) return;
@@ -1153,7 +1179,7 @@ function printView(kind) {
   document.getElementById('print-demen-wrap')?.classList.remove('hidden'); document.getElementById('print-invoice-box')?.classList.remove('hidden'); screen.classList.remove('print-active');
 }
 function bindEvents() {
-  document.querySelectorAll('.nav-item').forEach((button) => button.addEventListener('click', () => { activeScreen = button.dataset.screen; renderAll(); }));
+  document.querySelectorAll('.nav-item').forEach((button) => button.addEventListener('click', () => { if (activeScreen === 'st') flushSettingsAutosave(); activeScreen = button.dataset.screen; renderAll(); }));
   const salesToggle = document.getElementById('toggle-sales-btn');
   if (salesToggle) salesToggle.addEventListener('click', () => { state.settings.showSales = !state.settings.showSales; saveState(); renderAll(); });
   ['prev-month-btn', 'sub-prev-month-btn', 'inv-prev-month-btn'].forEach((id) => document.getElementById(id).addEventListener('click', () => { cursor = new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1); if (monthKey(selectedDate) !== monthKey(cursor)) selectedDate = toYmd(cursor); renderAll(); }));
@@ -1178,9 +1204,9 @@ function bindEvents() {
   document.getElementById('stamp-pick-btn')?.addEventListener('click', () => document.getElementById('st-stamp-file')?.click());
   document.getElementById('st-stamp-file')?.addEventListener('change', (event) => { handleStampFile(event.target.files?.[0]); event.target.value = ''; });
   document.getElementById('stamp-clear-btn')?.addEventListener('click', clearStampImage);
-  document.getElementById('tgl-inv').addEventListener('click', () => { document.getElementById('tgl-inv').classList.toggle('on'); document.getElementById('inv-no-row').classList.toggle('hidden', !document.getElementById('tgl-inv').classList.contains('on')); });
-  document.getElementById('tgl-subcontract')?.addEventListener('click', () => document.getElementById('tgl-subcontract').classList.toggle('on'));
-  ['tgl-sales-labor', 'tgl-sales-overtime', 'tgl-sales-expenses'].forEach((id) => document.getElementById(id)?.addEventListener('click', () => document.getElementById(id).classList.toggle('on')));
+  document.getElementById('tgl-inv').addEventListener('click', () => { document.getElementById('tgl-inv').classList.toggle('on'); document.getElementById('inv-no-row').classList.toggle('hidden', !document.getElementById('tgl-inv').classList.contains('on')); scheduleSettingsAutosave({ immediate: true }); });
+  document.getElementById('tgl-subcontract')?.addEventListener('click', () => { document.getElementById('tgl-subcontract').classList.toggle('on'); scheduleSettingsAutosave({ immediate: true }); });
+  ['tgl-sales-labor', 'tgl-sales-overtime', 'tgl-sales-expenses'].forEach((id) => document.getElementById(id)?.addEventListener('click', () => { document.getElementById(id).classList.toggle('on'); scheduleSettingsAutosave({ immediate: true }); }));
   document.getElementById('modal-bg').addEventListener('click', (event) => { if (event.target.id === 'modal-bg') closeModal(); });
   document.addEventListener('click', (event) => {
     if (event.target.id === 'date-picker-bg' || event.target.matches('[data-date-picker-cancel]')) { closeDatePicker(); return; }
@@ -1192,9 +1218,9 @@ function bindEvents() {
     const datePickerInput = event.target.closest('[data-date-picker]');
     if (datePickerInput) { openDatePicker(datePickerInput); return; }
     const removeCompanyPreset = event.target.closest('[data-remove-company-preset]');
-    if (removeCompanyPreset) { const values = companyPresetValues().filter((_, index) => index !== Number(removeCompanyPreset.dataset.removeCompanyPreset)); writeCompanyPresetValues(values); renderCompanyPresetList(); return; }
+    if (removeCompanyPreset) { const values = companyPresetValues().filter((_, index) => index !== Number(removeCompanyPreset.dataset.removeCompanyPreset)); writeCompanyPresetValues(values); renderCompanyPresetList(); scheduleSettingsAutosave({ immediate: true }); return; }
     const removeSettingItem = event.target.closest('[data-remove-setting-item]');
-    if (removeSettingItem) { const hiddenId = removeSettingItem.dataset.removeSettingItem; const index = Number(removeSettingItem.dataset.removeIndex); const values = settingListValues(hiddenId).filter((_, itemIndex) => itemIndex !== index); writeSettingList(hiddenId, values); renderSettingListEditors(); return; }
+    if (removeSettingItem) { const hiddenId = removeSettingItem.dataset.removeSettingItem; const index = Number(removeSettingItem.dataset.removeIndex); const values = settingListValues(hiddenId).filter((_, itemIndex) => itemIndex !== index); writeSettingList(hiddenId, values); renderSettingListEditors(); scheduleSettingsAutosave({ immediate: true }); return; }
     const closeDayButton = event.target.closest('[data-close-day-modal]');
     if (closeDayButton || event.target.id === 'day-modal-bg') { closeDayModal(); return; }
     const menuButton = event.target.closest('#menu-toggle-btn,[data-menu-open]');
@@ -1204,7 +1230,7 @@ function bindEvents() {
       return;
     }
     const screenLink = event.target.closest('[data-screen-link]');
-    if (screenLink) { activeScreen = screenLink.dataset.screenLink; if (activeScreen !== 'cal') closeDayModal(); renderAll(); return; }
+    if (screenLink) { if (activeScreen === 'st') flushSettingsAutosave(); activeScreen = screenLink.dataset.screenLink; if (activeScreen !== 'cal') closeDayModal(); renderAll(); return; }
     const otherSales = event.target.closest('[data-sales-toggle]');
     if (otherSales) { state.settings.showSales = !state.settings.showSales; saveState(); renderAll(); return; }
     const dayButton = event.target.closest('.cal-day');
@@ -1241,6 +1267,7 @@ function bindEvents() {
   document.addEventListener('change', (event) => {
     if (event.target.id === 'f-date' || event.target.id === 'f-end-date') { renderRangeExclusions(); return; }
     if (event.target.id === 'google-export-start' || event.target.id === 'google-export-end') { renderSyncScreen(); return; }
+    if (event.target.matches('#st-tax')) { scheduleSettingsAutosave({ immediate: true }); return; }
     if (event.target.matches('[data-range-exclude]')) { event.target.closest('.range-exclude-chip')?.classList.toggle('checked', event.target.checked); return; }
     if (event.target.id === 'f-company-select') { const input = document.getElementById('f-company'); if (input && event.target.value) { input.value = event.target.value; applyCompanyRate(event.target.value); updateSubcontractDiff(); } return; }
     if (event.target.matches('[data-receipt-category]')) { updateReceiptField(event.target.dataset.receiptCategory, { category: event.target.value, status: '確認済み' }); renderAll(); return; }
@@ -1253,8 +1280,10 @@ function bindEvents() {
   });
 
   document.addEventListener('input', (event) => {
+    if (event.target.matches('#st-name,#st-postal,#st-addr,#st-tel,#st-co,#st-bank,#st-branch,#st-accno,#st-accname,#st-invno')) scheduleSettingsAutosave();
     if (event.target.matches('#entry-form input, #entry-form textarea, #entry-form select')) updateSubcontractDiff();
   });
+  window.addEventListener('beforeunload', flushSettingsAutosave);
 
   document.addEventListener('submit', (event) => {
     if (event.target.id !== 'entry-form') return;
