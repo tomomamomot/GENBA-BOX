@@ -213,7 +213,23 @@ function companyRateText(preset) {
 function renderCompanyPresetList() {
   const list = document.getElementById('st-company-list'); if (!list) return;
   const presets = companyPresetValues();
-  list.innerHTML = presets.length ? presets.map((preset, index) => `<div class="company-rate-card"><div><div class="company-rate-name">${escapeHtml(preset.name)}</div><div class="company-rate-meta">${escapeHtml(companyRateText(preset))}</div></div><button type="button" data-remove-company-preset="${index}" aria-label="削除">×</button></div>`).join('') : '<div class="empty-inline">まだ登録がありません</div>';
+  list.innerHTML = presets.length ? presets.map((preset, index) => `
+    <div class="company-rate-card">
+      <div class="company-rate-edit">
+        <input class="st-input company-rate-name-input" data-company-preset-field="name" data-company-preset-index="${index}" value="${escapeHtml(preset.name)}" placeholder="会社名">
+        <input class="st-input" type="number" inputmode="numeric" data-company-preset-field="dayRate" data-company-preset-index="${index}" value="${rateFieldValue(preset.dayRate)}" placeholder="日勤">
+        <input class="st-input" type="number" inputmode="numeric" data-company-preset-field="nightRate" data-company-preset-index="${index}" value="${rateFieldValue(preset.nightRate)}" placeholder="夜勤">
+        <input class="st-input" type="number" inputmode="numeric" data-company-preset-field="otRate" data-company-preset-index="${index}" value="${rateFieldValue(preset.otRate)}" placeholder="残業">
+      </div>
+      <button type="button" data-remove-company-preset="${index}" aria-label="削除">×</button>
+    </div>`).join('') : '<div class="empty-inline">まだ登録がありません</div>';
+}
+function updateCompanyPresetField(index, field, value) {
+  const values = companyPresetValues();
+  const item = values[index]; if (!item) return;
+  item[field] = field === 'name' ? value.trim() : num(value);
+  writeCompanyPresetValues(values);
+  scheduleSettingsAutosave();
 }
 function renderSettingListEditors() { renderCompanyPresetList(); renderEditableList('st-expense-list', 'st-expenses'); }
 function addCompanyPreset() {
@@ -505,7 +521,7 @@ function buildDemenSheet(entries, totals, hidden) {
     <div class="tbl-wrap demen-sheet-wrap" id="print-demen-wrap">
       <table class="demen demen-sheet">
         <thead>
-          <tr class="demen-title-row"><th colspan="4"></th><th class="demen-title-main">${cursor.getMonth() + 1}</th><th colspan="3" class="left demen-title-main">月 出面表</th><th colspan="5"></th><th class="right demen-title-name">氏名：</th><th class="demen-title-name">${escapeHtml(state.settings.name || '')}</th></tr>
+          <tr class="demen-title-row"><th colspan="4" class="left demen-company-name">${escapeHtml(selectedCompany || '')}</th><th class="demen-title-main">${cursor.getMonth() + 1}</th><th colspan="3" class="left demen-title-main">月 出面表</th><th colspan="5"></th><th class="right demen-title-name">氏名：</th><th class="demen-title-name">${escapeHtml(state.settings.name || '')}</th></tr>
           <tr><th>日</th><th>現場名</th><th>人工</th><th>人工単価</th><th>人工合計</th><th>残業h</th><th>残業単価</th><th>残業合計</th>${expenseHeaders}</tr>
         </thead>
         <tbody>${bodyRows}</tbody>
@@ -1281,6 +1297,7 @@ function bindEvents() {
 
   document.addEventListener('input', (event) => {
     if (event.target.matches('#st-name,#st-postal,#st-addr,#st-tel,#st-co,#st-bank,#st-branch,#st-accno,#st-accname,#st-invno')) scheduleSettingsAutosave();
+    if (event.target.matches('[data-company-preset-field]')) updateCompanyPresetField(Number(event.target.dataset.companyPresetIndex), event.target.dataset.companyPresetField, event.target.value);
     if (event.target.matches('#entry-form input, #entry-form textarea, #entry-form select')) updateSubcontractDiff();
   });
   window.addEventListener('beforeunload', flushSettingsAutosave);
