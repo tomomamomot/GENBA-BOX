@@ -430,6 +430,7 @@ function renderSyncScreen() {
   const calendarCount = document.getElementById('calendar-export-count'); if (calendarCount) calendarCount.textContent = `${month.length}件`;
   const backupStatus = document.getElementById('backup-status'); if (backupStatus) backupStatus.textContent = `${state.entries.length}予定`;
   const clientInput = document.getElementById('google-client-id'); if (clientInput && !clientInput.value) clientInput.value = state.settings.googleClientId || '';
+  updateGoogleClientIdDisplay();
   const driveStatus = document.getElementById('drive-sync-status'); if (driveStatus) driveStatus.textContent = googleAccessToken ? 'ログイン済み' : (state.settings.googleClientId ? '設定済み' : '未設定');
   const log = document.getElementById('sync-log'); if (log && !log.textContent) log.textContent = 'Google Drive同期を使うにはクライアントIDを保存してからログインしてください';
 }
@@ -669,12 +670,28 @@ function upsertEntries(entries) {
   cursor = startOfMonth(fromYmd(entries[0].date));
   saveState(); renderAll();
 }
+function normalizeGoogleClientId(value) {
+  return String(value || '').replace(/\s+/g, '');
+}
+function maskedClientId(value) {
+  const id = normalizeGoogleClientId(value);
+  if (!id) return '未設定';
+  if (id.length <= 18) return id;
+  return `${id.slice(0, 10)}...${id.slice(-24)}`;
+}
+function updateGoogleClientIdDisplay() {
+  const el = document.getElementById('google-client-id-current');
+  if (el) el.textContent = `使用中: ${maskedClientId(state.settings.googleClientId)}`;
+}
 function saveGoogleSettings() {
-  state.settings.googleClientId = document.getElementById('google-client-id')?.value.trim() || '';
+  const clientInput = document.getElementById('google-client-id');
+  const clientId = normalizeGoogleClientId(clientInput?.value || state.settings.googleClientId);
+  if (clientInput) clientInput.value = clientId;
+  state.settings.googleClientId = clientId;
   state.settings.googleCalendarId = document.getElementById('google-calendar-id')?.value.trim() || 'primary';
   state.settings.googleStoreMode = document.getElementById('google-store-mode')?.value || 'local';
   state.settings.updatedAt = new Date().toISOString();
-  saveState(); renderAll(); setSyncLog('Google設定を保存しました');
+  saveState(); renderAll(); updateGoogleClientIdDisplay(); setSyncLog(`Google設定を保存しました。${maskedClientId(clientId)} を使用します`);
 }
 function setSyncLog(message) { const log = document.getElementById('sync-log'); if (log) log.textContent = message; }
 function localModifiedAt(targetState = state) {
@@ -712,13 +729,17 @@ function googleSyncErrorMessage(error) {
   const text = String(error?.message || error?.type || error || '');
   if (/popup|closed/i.test(text)) return 'ログイン画面が開けませんでした。スマホではホーム画面アプリではなくChrome/SafariでNINQを開いて、もう一度Googleログインしてください。';
   if (/access_denied|403/i.test(text)) return 'Googleにブロックされました。OAuthのテストユーザーにこのGoogleアカウントが追加されているか確認してください。';
-  if (/invalid_client|origin|redirect_uri/i.test(text)) return 'GoogleクライアントIDの設定が合っていません。承認済みJavaScript生成元に https://tomomamomot.github.io を入れてください。';
+  if (/invalid_client|origin|redirect_uri/i.test(text)) return `GoogleクライアントIDがGoogle側で認識されていません。NINQが使っているIDは ${maskedClientId(state.settings.googleClientId)} です。ウェブアプリ用IDか確認してください。`;
   if (/Failed to fetch|NetworkError|読み込みに失敗/i.test(text)) return '通信に失敗しました。電波状況、広告ブロック、Googleログインのブロック設定を確認してください。';
   return text || 'Google Drive同期に失敗しました';
 }
 async function getDriveToken(prompt = '') {
-  const clientId = document.getElementById('google-client-id')?.value.trim() || state.settings.googleClientId;
+  const clientId = normalizeGoogleClientId(document.getElementById('google-client-id')?.value || state.settings.googleClientId);
   if (!clientId) throw new Error('GoogleクライアントIDを入力して保存してください');
+  if (!/\.apps\.googleusercontent\.com$/.test(clientId)) throw new Error('GoogleクライアントIDは .apps.googleusercontent.com で終わるものを貼り付けてください');
+  state.settings.googleClientId = clientId;
+  saveState();
+  updateGoogleClientIdDisplay();
   await loadGoogleIdentity();
   return new Promise((resolve, reject) => {
     googleTokenClient = window.google.accounts.oauth2.initTokenClient({
