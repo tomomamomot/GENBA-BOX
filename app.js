@@ -498,7 +498,7 @@ function renderDatePicker() {
   if (!picker) return;
   const monthStart = startOfMonth(datePickerCursor);
   const first = new Date(monthStart);
-  first.setDate(first.getDate() - first.getDay());
+  first.setDate(first.getDate() - ((first.getDay() + 6) % 7));
   const cells = [];
   for (let i = 0; i < 42; i += 1) {
     const date = new Date(first);
@@ -516,7 +516,7 @@ function renderDatePicker() {
         <strong>${fmtMonth(datePickerCursor)}</strong>
         <button type="button" data-date-picker-next>›</button>
       </div>
-      <div class="date-picker-week">${['日', '月', '火', '水', '木', '金', '土'].map((day) => `<span>${day}</span>`).join('')}</div>
+      <div class="date-picker-week">${['月', '火', '水', '木', '金', '土', '日'].map((day) => `<span>${day}</span>`).join('')}</div>
       <div class="date-picker-grid">${cells.join('')}</div>
       <div class="date-picker-actions">
         <button class="btn-secondary" type="button" data-date-picker-cancel>キャンセル</button>
