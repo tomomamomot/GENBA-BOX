@@ -64,11 +64,24 @@ function normalizeExpenseItems(items) {
 function normalizeCompanyRates(items, companies = []) {
   const source = Array.isArray(items) ? items : [];
   const mapped = source.map((item) => {
-    if (typeof item === 'string') return { id: crypto.randomUUID(), name: item, dayRate: 0, nightRate: 0, otRate: 0 };
-    return { id: String(item.id || crypto.randomUUID()), name: String(item.name || item.company || '').trim(), dayRate: num(item.dayRate), nightRate: num(item.nightRate), otRate: num(item.otRate) };
+    if (typeof item === 'string') return { id: crypto.randomUUID(), name: item, officialName: item, dayRate: 0, nightRate: 0, otRate: 0 };
+    const name = String(item.name || item.company || '').trim();
+    return { id: String(item.id || crypto.randomUUID()), name, officialName: String(item.officialName || item.formalName || name).trim(), dayRate: num(item.dayRate), nightRate: num(item.nightRate), otRate: num(item.otRate) };
   }).filter((item) => item.name);
-  companies.filter(Boolean).forEach((name) => { if (!mapped.some((item) => item.name === name)) mapped.push({ id: crypto.randomUUID(), name, dayRate: 0, nightRate: 0, otRate: 0 }); });
-  return mapped;
+  const deduped = [];
+  mapped.forEach((item) => {
+    const existing = deduped.find((saved) => saved.id === item.id || saved.name === item.name);
+    if (existing) {
+      existing.officialName = item.officialName || existing.officialName || item.name;
+      existing.dayRate = item.dayRate || existing.dayRate;
+      existing.nightRate = item.nightRate || existing.nightRate;
+      existing.otRate = item.otRate || existing.otRate;
+    } else {
+      deduped.push(item);
+    }
+  });
+  companies.filter(Boolean).forEach((name) => { if (!deduped.some((item) => item.name === name)) deduped.push({ id: crypto.randomUUID(), name, officialName: name, dayRate: 0, nightRate: 0, otRate: 0 }); });
+  return deduped;
 }
 function normalizeReceipt(receipt) {
   return {
@@ -97,7 +110,7 @@ function migrateLegacy(oldData) {
     invoiceNo: oldSettings.invno || '', invoiceEnabled: oldSettings.showInv !== false, taxRate: num(oldSettings.taxRate || 10),
     defaultDayRate: num(oldSettings.tanka || 0), defaultNightRate: num(oldSettings.ntanka || 0), defaultOtRate: num(oldSettings.ottanka || 0),
     companies: [...new Set((oldData.entries || []).map((entry) => entry.co).filter(Boolean))],
-    companyRates: [...new Set((oldData.entries || []).map((entry) => entry.co).filter(Boolean))].map((name) => ({ id: crypto.randomUUID(), name, dayRate: num(oldSettings.tanka || 0), nightRate: num(oldSettings.ntanka || 0), otRate: num(oldSettings.ottanka || 0) })),
+    companyRates: [...new Set((oldData.entries || []).map((entry) => entry.co).filter(Boolean))].map((name) => ({ id: crypto.randomUUID(), name, officialName: name, dayRate: num(oldSettings.tanka || 0), nightRate: num(oldSettings.ntanka || 0), otRate: num(oldSettings.ottanka || 0) })),
   };
   migrated.entries = (oldData.entries || []).map((entry) => ({
     id: String(entry.id || crypto.randomUUID()), date: toYmd(new Date(entry.y, entry.m, entry.d)), type: entry.type || 'self',
@@ -183,6 +196,7 @@ function expenseItems() { return normalizeExpenseItems(state.settings.expenseIte
 function companyOptions() { return [...new Set([...companyPresets().map((item) => item.name), ...state.settings.companies, ...state.entries.map((entry) => entry.company).filter(Boolean)])].sort((a, b) => a.localeCompare(b, 'ja')); }
 function companyPresets() { return normalizeCompanyRates(state.settings.companyRates, state.settings.companies); }
 function companyPresetByName(name) { return companyPresets().find((item) => item.name === name); }
+function companyOfficialName(name) { return companyPresetByName(name)?.officialName || name; }
 function rateForPresetShift(preset, shift) { if (!preset) return 0; return shift === 'night' ? num(preset.nightRate) : num(preset.dayRate); }
 function subcontractEnabled() { return state.settings.showSubcontract !== false; }
 function yearEntries() { const year = cursor.getFullYear(); return state.entries.filter((entry) => fromYmd(entry.date).getFullYear() === year); }
@@ -216,18 +230,31 @@ function renderCompanyPresetList() {
   list.innerHTML = presets.length ? presets.map((preset, index) => `
     <div class="company-rate-card">
       <div class="company-rate-edit">
-        <input class="st-input company-rate-name-input" data-company-preset-field="name" data-company-preset-index="${index}" value="${escapeHtml(preset.name)}" placeholder="会社名">
-        <input class="st-input" type="number" inputmode="numeric" data-company-preset-field="dayRate" data-company-preset-index="${index}" value="${rateFieldValue(preset.dayRate)}" placeholder="日勤">
-        <input class="st-input" type="number" inputmode="numeric" data-company-preset-field="nightRate" data-company-preset-index="${index}" value="${rateFieldValue(preset.nightRate)}" placeholder="夜勤">
-        <input class="st-input" type="number" inputmode="numeric" data-company-preset-field="otRate" data-company-preset-index="${index}" value="${rateFieldValue(preset.otRate)}" placeholder="残業">
+        <input class="st-input company-rate-name-input" data-company-preset-field="name" data-company-preset-id="${escapeHtml(preset.id)}" value="${escapeHtml(preset.name)}" placeholder="カレンダー表示名">
+        <input class="st-input company-rate-name-input" data-company-preset-field="officialName" data-company-preset-id="${escapeHtml(preset.id)}" value="${escapeHtml(preset.officialName || preset.name)}" placeholder="請求書・出面表の正式名称">
+        <input class="st-input" type="number" inputmode="numeric" data-company-preset-field="dayRate" data-company-preset-id="${escapeHtml(preset.id)}" value="${rateFieldValue(preset.dayRate)}" placeholder="日勤">
+        <input class="st-input" type="number" inputmode="numeric" data-company-preset-field="nightRate" data-company-preset-id="${escapeHtml(preset.id)}" value="${rateFieldValue(preset.nightRate)}" placeholder="夜勤">
+        <input class="st-input" type="number" inputmode="numeric" data-company-preset-field="otRate" data-company-preset-id="${escapeHtml(preset.id)}" value="${rateFieldValue(preset.otRate)}" placeholder="残業">
       </div>
       <button type="button" data-remove-company-preset="${index}" aria-label="削除">×</button>
     </div>`).join('') : '<div class="empty-inline">まだ登録がありません</div>';
 }
-function updateCompanyPresetField(index, field, value) {
+function updateCompanyPresetField(id, field, value) {
   const values = companyPresetValues();
-  const item = values[index]; if (!item) return;
-  item[field] = field === 'name' ? value.trim() : num(value);
+  const item = values.find((preset) => preset.id === id); if (!item) return;
+  if (field === 'name') {
+    const oldName = item.name;
+    const nextName = value.trim();
+    if (!nextName) return;
+    item.name = nextName;
+    item.officialName = item.officialName || oldName;
+    state.entries = state.entries.map((entry) => entry.company === oldName ? { ...entry, company: nextName, updatedAt: new Date().toISOString() } : entry);
+    if (selectedCompany === oldName) selectedCompany = nextName;
+  } else if (field === 'officialName') {
+    item.officialName = value.trim();
+  } else {
+    item[field] = num(value);
+  }
   writeCompanyPresetValues(values);
   scheduleSettingsAutosave();
 }
@@ -236,9 +263,9 @@ function addCompanyPreset() {
   const nameInput = document.getElementById('st-company-new'); if (!nameInput) return;
   const name = nameInput.value.trim(); if (!name) return;
   const next = companyPresetValues().filter((item) => item.name !== name);
-  next.push({ id: crypto.randomUUID(), name, dayRate: num(document.getElementById('st-company-day-new')?.value), nightRate: num(document.getElementById('st-company-night-new')?.value), otRate: num(document.getElementById('st-company-ot-new')?.value) });
+  next.push({ id: crypto.randomUUID(), name, officialName: document.getElementById('st-company-official-new')?.value.trim() || name, dayRate: num(document.getElementById('st-company-day-new')?.value), nightRate: num(document.getElementById('st-company-night-new')?.value), otRate: num(document.getElementById('st-company-ot-new')?.value) });
   writeCompanyPresetValues(next);
-  ['st-company-new', 'st-company-day-new', 'st-company-night-new', 'st-company-ot-new'].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['st-company-new', 'st-company-official-new', 'st-company-day-new', 'st-company-night-new', 'st-company-ot-new'].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ''; });
   renderCompanyPresetList();
   scheduleSettingsAutosave({ immediate: true });
 }
@@ -441,6 +468,7 @@ function invoiceTotals(entries) {
 }
 function buildInvoiceSheet(entries, totals, hidden) {
   const s = state.settings;
+  const invoiceCompany = companyOfficialName(selectedCompany);
   const laborRate = entries.find((entry) => calcEntry(entry).unitRate)?.unitRate || 0;
   const otRate = entries.find((entry) => calcEntry(entry).otRate)?.otRate || 0;
   const stamp = s.stampImage ? `<img class="invoice-stamp" src="${s.stampImage}" alt="印鑑">` : '';
@@ -451,7 +479,7 @@ function buildInvoiceSheet(entries, totals, hidden) {
       <div class="invoice-sheet" id="print-invoice-box">
         <div class="invoice-title">御　請　求　書</div>
         <div class="invoice-date">${invoiceDateLabel()}</div>
-        <div class="invoice-to"><span>${escapeHtml(selectedCompany)}</span><b>御中</b></div>
+        <div class="invoice-to"><span>${escapeHtml(invoiceCompany)}</span><b>御中</b></div>
         <div class="invoice-message">　　下記のとおりご請求申し上げます</div>
         <div class="invoice-sender">
           ${stamp}
@@ -521,7 +549,7 @@ function buildDemenSheet(entries, totals, hidden) {
     <div class="tbl-wrap demen-sheet-wrap" id="print-demen-wrap">
       <table class="demen demen-sheet">
         <thead>
-          <tr class="demen-title-row"><th colspan="4" class="left demen-company-name">${escapeHtml(selectedCompany || '')}</th><th class="demen-title-main">${cursor.getMonth() + 1}</th><th colspan="3" class="left demen-title-main">月 出面表</th><th colspan="5"></th><th class="right demen-title-name">氏名：</th><th class="demen-title-name">${escapeHtml(state.settings.name || '')}</th></tr>
+          <tr class="demen-title-row"><th colspan="4" class="left demen-company-name">${escapeHtml(companyOfficialName(selectedCompany) || '')}</th><th class="demen-title-main">${cursor.getMonth() + 1}</th><th colspan="3" class="left demen-title-main">月 出面表</th><th colspan="5"></th><th class="right demen-title-name">氏名：</th><th class="demen-title-name">${escapeHtml(state.settings.name || '')}</th></tr>
           <tr><th>日</th><th>現場名</th><th>人工</th><th>人工単価</th><th>人工合計</th><th>残業h</th><th>残業単価</th><th>残業合計</th>${expenseHeaders}</tr>
         </thead>
         <tbody>${bodyRows}</tbody>
@@ -1186,7 +1214,7 @@ function exportSubPaymentsCsv() {
 }
 function exportInvoiceCsv() {
   const totals = invoiceTotals(entriesForInvoiceCompany());
-  downloadCsv(`${monthKey(cursor)}_${selectedCompany}_請求書.csv`, [['請求先', selectedCompany], ['対象月', fmtMonth(cursor)], ['売上（税別）', totals.subtotal], ['消費税', totals.tax], ['諸経費', totals.expenseTotal], ['合計', totals.total]]);
+  downloadCsv(`${monthKey(cursor)}_${selectedCompany}_請求書.csv`, [['請求先', companyOfficialName(selectedCompany)], ['対象月', fmtMonth(cursor)], ['売上（税別）', totals.subtotal], ['消費税', totals.tax], ['諸経費', totals.expenseTotal], ['合計', totals.total]]);
 }
 function printView(kind) {
   const screen = document.getElementById('sc-inv'); screen.classList.add('print-active');
@@ -1297,7 +1325,7 @@ function bindEvents() {
 
   document.addEventListener('input', (event) => {
     if (event.target.matches('#st-name,#st-postal,#st-addr,#st-tel,#st-co,#st-bank,#st-branch,#st-accno,#st-accname,#st-invno')) scheduleSettingsAutosave();
-    if (event.target.matches('[data-company-preset-field]')) updateCompanyPresetField(Number(event.target.dataset.companyPresetIndex), event.target.dataset.companyPresetField, event.target.value);
+    if (event.target.matches('[data-company-preset-field]')) updateCompanyPresetField(event.target.dataset.companyPresetId, event.target.dataset.companyPresetField, event.target.value);
     if (event.target.matches('#entry-form input, #entry-form textarea, #entry-form select')) updateSubcontractDiff();
   });
   window.addEventListener('beforeunload', flushSettingsAutosave);

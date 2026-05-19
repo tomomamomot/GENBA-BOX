@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.json?v=35">
 <link rel="icon" href="icon-192.png?v=34">
 <link rel="apple-touch-icon" href="apple-touch-icon.png?v=34">
-<link rel="stylesheet" href="styles.css?v=31">
+<link rel="stylesheet" href="styles.css?v=32">
 </head>
 <body>
 <div id="sc-cal" class="screen active">
@@ -86,7 +86,6 @@
     <span class="month-label" id="inv-mnav"></span>
     <button id="inv-next-month-btn">&#8250;</button>
   </div>
-  <div class="inline-head">会社を選択</div>
   <div class="co-tabs" id="co-tabs"></div>
   <div id="inv-body"></div>
 </div>
@@ -109,7 +108,8 @@
     <div class="field pad-field">
       <label>会社名と単価</label>
       <div class="company-rate-add">
-        <input id="st-company-new" class="st-input" placeholder="会社名を入力">
+        <input id="st-company-new" class="st-input" placeholder="カレンダー表示名 例: 山田建設">
+        <input id="st-company-official-new" class="st-input" placeholder="正式名称 例: 株式会社山田建設">
         <input id="st-company-day-new" class="st-input" type="number" inputmode="numeric" placeholder="日勤単価">
         <input id="st-company-night-new" class="st-input" type="number" inputmode="numeric" placeholder="夜勤単価">
         <input id="st-company-ot-new" class="st-input" type="number" inputmode="numeric" placeholder="残業単価">
@@ -299,6 +299,6 @@
   </div>
 </div>
 
-<script src="app.js?v=36"></script>
+<script src="app.js?v=37"></script>
 </body>
 </html>
